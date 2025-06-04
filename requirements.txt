@@ -1,0 +1,6 @@
+chromadb==1.0.5
+fastapi==0.115.9
+pdfplumber==0.11.6
+pydantic==2.11.3
+requests==2.32.3
+python-dotenv==1.1.0
