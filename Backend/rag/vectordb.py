@@ -12,6 +12,7 @@ class ChromaDBConnector:
     
     def __init__(self, settings: Settings = None, persist_directory: str = "./chroma_db"):
         # Settings ggf. anpassen, damit persist_directory gesetzt wird
+        #TODO: make it persistent
         if settings is None:
             settings = Settings(persist_directory=persist_directory)
         else:
@@ -28,6 +29,8 @@ class ChromaDBConnector:
         try:
             collection = self.client.get_collection(collection_name)
         except:
+            #TODO: make the collection persistent if created completetly new
+
             # Collection nicht gefunden, erstelle neue + Embedding-Funktion anpassen
             collection = self.client.create_collection(collection_name, embedding_function=self.embed_fn)
         return collection

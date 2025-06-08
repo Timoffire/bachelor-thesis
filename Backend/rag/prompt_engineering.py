@@ -4,6 +4,8 @@ def build_prompt(ticker: str, metrics: List[str], context: str, metric_values: d
     """
     Erstellt für jede Metrik einen maßgeschneiderten Prompt-Abschnitt und kombiniert diese zu einem Gesamtprompt.
     """
+    #TODO: update the whole builder for optimal engineering
+
     # Kombiniere System- und User-Message zu einem einzigen Prompt-String
     system_message = (
         "You are a senior financial analyst with expertise in stock metrics analysis. "
