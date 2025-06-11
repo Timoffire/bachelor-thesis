@@ -25,13 +25,14 @@ class AnalysisRequest(BaseModel):
 
 class AddDocumentRequest(BaseModel):
     pdf_path: str
-    collection_name: str
+    path_is_folder: bool
 
 class DeleteCollectionRequest(BaseModel):
-    collection_name: str
+    collection_deletion: bool
 
 @app.get("/health")
 def health():
+
     return {"status": "ok"}
 
 @app.post("/analyze")
@@ -51,14 +52,19 @@ def add_document(request: AddDocumentRequest):
     Fügt der lokalen ChromaDB VectorDB ein PDF-Dokument hinzu.
     """
     try:
-        pipeline.add_document(request.pdf_path, collection_name=request.collection_name)
+        if request.path_is_folder:
+            pipeline.ingest_pdf_folder(request.pdf_path)
+        else:
+            pipeline.add_document(request.pdf_path)
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/delete_collection")
 def delete_collection(request: DeleteCollectionRequest):
-    pipeline.delete_collection()
+    if request.collection_deletion:
+        pipeline.delete_collection()
+
 #Settings for the backend you request from the frontend
 @app.get("/settings")
 def settings():

@@ -25,7 +25,7 @@ class RAGPipeline:
         for filename in os.listdir(folder_path):
             if filename.lower().endswith(".pdf"):
                 pdf_path = os.path.join(folder_path, filename)
-                self.db_connector.add_pdf_to_collection(pdf_path, self)
+                self.db_connector.add_pdf_to_collection(pdf_path)
 
     def query(self, query: str, metric: str, n_results: int = 3):
         """
@@ -57,3 +57,9 @@ class RAGPipeline:
 
     def delete_collection(self):
         self.db_connector.delete_collection()
+
+    def add_document(self, path: str):
+        self.db_connector.add_pdf_to_collection(path)
+
+    def check_health(self):
+        #TODO: Check Health of Backend
