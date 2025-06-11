@@ -23,6 +23,13 @@ class AnalysisRequest(BaseModel):
     embedding_model: Optional[str] = None
     llm_model: Optional[str] = None
 
+class AddDocumentRequest(BaseModel):
+    pdf_path: str
+    collection_name: str
+
+class DeleteCollectionRequest(BaseModel):
+    collection_name: str
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -39,7 +46,7 @@ def analyze(request: AnalysisRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/add_document")
-def add_document(request: AnalysisRequest):
+def add_document(request: AddDocumentRequest):
     """
     Fügt der lokalen ChromaDB VectorDB ein PDF-Dokument hinzu.
     """
@@ -49,6 +56,9 @@ def add_document(request: AnalysisRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/delete_collection")
+def delete_collection(request: DeleteCollectionRequest):
+    pipeline.delete_collection()
 #Settings for the backend you request from the frontend
 @app.get("/settings")
 def settings():

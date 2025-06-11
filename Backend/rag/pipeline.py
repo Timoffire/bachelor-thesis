@@ -54,3 +54,6 @@ class RAGPipeline:
             responses.append(response)
             all_sources.append(sources)
         return "überarbeiten"
+
+    def delete_collection(self):
+        self.db_connector.delete_collection()
