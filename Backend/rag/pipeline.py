@@ -1,3 +1,5 @@
+from typing import Union, Any
+
 from vectordb import ChromaDBConnector
 from prompt_engineering import build_prompt
 from metrics import get_stock_metrics
@@ -27,25 +29,67 @@ class RAGPipeline:
                 pdf_path = os.path.join(folder_path, filename)
                 self.db_connector.add_pdf_to_collection(pdf_path)
 
-    def query(self, query: str, metric: str, n_results: int = 3):
+    def query(self, query_text: str, n_results: int = 5, include_metadata: bool = True) -> tuple[str, list[str]]:
         """
-        Führt eine Retrieval-Abfrage über die ChromaDBConnector-Query-Methode durch.
-        Gibt (context, sources) direkt zurück.
-        """
-        return self.db_connector.query_collection()
+        Führt eine Abfrage gegen die ChromaDB durch und gibt Kontext und Quellen zurück.
 
-    def run(self, ticker: str, metrics: list, embedding_model: str = None, llm_model: str = None) -> str:
+        Args:
+            query_text: Der Suchtext für die Abfrage
+            n_results: Anzahl der zurückzugebenden Ergebnisse (Standard: 5)
+            include_metadata: Ob Metadaten in die Quellen einbezogen werden sollen
+
+        Returns:
+            tuple: (context, sources)
+                - context: Zusammengefügter Text aller gefundenen Dokumente
+                - sources: Liste der Quellen-IDs oder Metadaten
+        """
+        try:
+            # Abfrage an ChromaDB
+            results = self.db_connector.query_collection(
+                query_text=query_text,
+                n_results=n_results,
+            )
+
+            if not results:
+                return "", []
+
+            # Kontext aus allen gefundenen Dokumenten zusammenbauen
+            context_parts = []
+            sources = []
+
+            for doc_id, doc_text in results:
+                # Nur den Dokument-Text zum Kontext hinzufügen (ohne Quellenangabe)
+                context_parts.append(doc_text)
+
+                # Quelle zur separaten Liste hinzufügen
+                sources.append(doc_id)
+
+            # Gesamten Kontext zusammenfügen
+            context = "\n\n".join(context_parts)
+
+            return context, sources
+
+        except Exception as e:
+            print(f"Fehler bei der Abfrage: {str(e)}")
+            return "", []
+
+    def run(self, ticker: str, metrics: list, embedding_model: str = None, llm_model: str = None) -> dict[
+        str, Union[str, list[Any]]]:
         stock_metrics = get_stock_metrics(ticker, metrics)
         responses = []
         all_sources = []
+
         if embedding_model:
             self.embedding_model = embedding_model
             self.db_connector = ChromaDBConnector(path = self.persist_directory, embedding_model=self.embedding_model)
         if llm_model:
             self.llm_model = llm_model
         for metric in metrics:
+            #query text builder
+            #TODO: query builder file
+            query_text = build_query_text(metric)
             # Get context and sources
-            context, sources = self.query(f"{ticker} {metric}", metric)
+            context, sources = self.query(query_text, n_results=5, include_metadata=True)
             # Build prompt
             prompt = build_prompt(ticker, metrics, context, stock_metrics)
             # Call LLM for each prompt
@@ -53,7 +97,11 @@ class RAGPipeline:
             #List of responses for each metric
             responses.append(response)
             all_sources.append(sources)
-        return "überarbeiten"
+        return {
+            'ticker': ticker,
+            'responses': responses,
+            'all_sources': list(set(all_sources))  # Entferne Duplikate
+        }
 
     def delete_collection(self):
         self.db_connector.delete_collection()
