@@ -1,7 +1,6 @@
 import chromadb
 import PyPDF2
-from typing import List, Optional
-import uuid
+from typing import List, Optional, Any
 import hashlib
 
 class ChromaDBConnector:
@@ -17,7 +16,7 @@ class ChromaDBConnector:
         return collection
 
     def add_pdf_to_collection(
-            collection: chromadb.Collection,
+            self,
             pdf_path: str,
             chunk_size: int = 1000,
             chunk_overlap: int = 200,
@@ -27,7 +26,7 @@ class ChromaDBConnector:
         Add a PDF document to a ChromaDB collection by extracting text and chunking it.
 
         Args:
-            collection: ChromaDB collection object
+            self: The ChromaDBConnector instance
             pdf_path: Path to the PDF file
             chunk_size: Maximum size of each text chunk (in characters)
             chunk_overlap: Number of characters to overlap between chunks
@@ -132,6 +131,7 @@ class ChromaDBConnector:
 
         # Add to ChromaDB collection
         try:
+            collection = self.client.get_collection(name="docs")
             collection.add(
                 documents=documents,
                 metadatas=metadatas,
@@ -149,166 +149,55 @@ class ChromaDBConnector:
         print("Collection deleted")
 
     def query_collection(
-            collection: chromadb.Collection,
+            self,
             query_text: str,
             n_results: int = 5,
-            include_distances: bool = True,
-            metadata_filter: Optional[dict] = None,
-            document_filter: Optional[List[str]] = None
-    ) -> dict:
+    ) -> List[List[str]]:
         """
-        Query a ChromaDB collection with text input and return relevant results.
+        Query a ChromaDB collection with text input and return relevant results as 2D array.
 
         Args:
-            collection: ChromaDB collection object to search
+            self: The ChromaDBConnector instance
             query_text: The text to search for
             n_results: Number of results to return (default: 5)
-            include_distances: Whether to include similarity distances in results
-            metadata_filter: Optional metadata filter (e.g., {"source": "document.pdf"})
-            document_filter: Optional list of specific document IDs to search within
+
 
         Returns:
-            Dictionary containing query results with documents, metadata, distances, and IDs
+            List[List[str]]: 2D array where each inner list contains [document_id, document_text]
         """
 
         try:
+            # Get a collection
+            collection = self.client.get_collection(name="docs")
+
             # Prepare query parameters
             query_params = {
                 "query_texts": [query_text],
-                "n_results": n_results
+                "n_results": n_results,
+                "include": ["documents", "ids"]  # Only include what we need for the 2D array
             }
-
-            # Add optional filters
-            if metadata_filter:
-                query_params["where"] = metadata_filter
-
-            if document_filter:
-                query_params["where_document"] = {"$contains": document_filter}
-
-            # Set what to include in results
-            include_list = ["documents", "metadatas", "ids"]
-            if include_distances:
-                include_list.append("distances")
-            query_params["include"] = include_list
 
             # Execute query
             results = collection.query(**query_params)
 
-            # Format results for better usability
-            formatted_results = {
-                "query": query_text,
-                "total_results": len(results["documents"][0]) if results["documents"] else 0,
-                "results": []
-            }
+            # Format results as 2D array [document_id, document_text]
+            formatted_array = []
 
-            if results["documents"] and results["documents"][0]:
-                for i in range(len(results["documents"][0])):
-                    result_item = {
-                        "id": results["ids"][0][i],
-                        "document": results["documents"][0][i],
-                        "metadata": results["metadatas"][0][i],
-                    }
+            if results.get('ids') and results.get('documents'):
+                # ChromaDB returns nested lists, so we access the first (and usually only) query result
+                ids = results['ids'][0] if results['ids'] else []
+                documents = results['documents'][0] if results['documents'] else []
 
-                    if include_distances and "distances" in results:
-                        result_item["distance"] = results["distances"][0][i]
-                        result_item["similarity_score"] = 1 - results["distances"][0][
-                            i]  # Convert distance to similarity
+                # Ensure both lists have the same length
+                min_length = min(len(ids), len(documents))
 
-                    formatted_results["results"].append(result_item)
+                for i in range(min_length):
+                    doc_id = ids[i]
+                    doc_text = documents[i]
+                    formatted_array.append([doc_id, doc_text])
 
-            return formatted_results
+            return formatted_array
 
         except Exception as e:
-            raise Exception(f"Error querying collection: {str(e)}")
-
-    def query_collection_with_context(
-            collection: chromadb.Collection,
-            query_text: str,
-            n_results: int = 3,
-            context_window: int = 1,
-            metadata_filter: Optional[dict] = None
-    ) -> dict:
-        """
-        Advanced query function that retrieves results with surrounding context chunks.
-
-        Args:
-            collection: ChromaDB collection object to search
-            query_text: The text to search for
-            n_results: Number of primary results to return
-            context_window: Number of adjacent chunks to include before/after each result
-            metadata_filter: Optional metadata filter
-
-        Returns:
-            Dictionary with results including context chunks
-        """
-
-        # Get initial results
-        initial_results = query_collection(
-            collection=collection,
-            query_text=query_text,
-            n_results=n_results,
-            metadata_filter=metadata_filter
-        )
-
-        enhanced_results = {
-            "query": query_text,
-            "total_results": initial_results["total_results"],
-            "results_with_context": []
-        }
-
-        for result in initial_results["results"]:
-            # Extract chunk information from metadata
-            chunk_index = result["metadata"].get("chunk_index", 0)
-            pdf_hash = result["metadata"].get("pdf_hash", "")
-            total_chunks = result["metadata"].get("total_chunks", 1)
-
-            # Find context chunks
-            context_chunks = {"before": [], "after": []}
-
-            if context_window > 0 and pdf_hash:
-                # Get chunks before
-                for i in range(max(0, chunk_index - context_window), chunk_index):
-                    context_id = f"{pdf_hash}_chunk_{i:04d}"
-                    try:
-                        context_result = collection.get(ids=[context_id])
-                        if context_result["documents"]:
-                            context_chunks["before"].append({
-                                "id": context_id,
-                                "document": context_result["documents"][0],
-                                "metadata": context_result["metadatas"][0]
-                            })
-                    except:
-                        pass  # Context chunk not found, skip
-
-                # Get chunks after
-                for i in range(chunk_index + 1, min(total_chunks, chunk_index + context_window + 1)):
-                    context_id = f"{pdf_hash}_chunk_{i:04d}"
-                    try:
-                        context_result = collection.get(ids=[context_id])
-                        if context_result["documents"]:
-                            context_chunks["after"].append({
-                                "id": context_id,
-                                "document": context_result["documents"][0],
-                                "metadata": context_result["metadatas"][0]
-                            })
-                    except:
-                        pass  # Context chunk not found, skip
-
-            enhanced_result = {
-                "main_result": result,
-                "context": context_chunks,
-                "full_context_text": ""
-            }
-
-            # Create full context text
-            full_text_parts = []
-            for ctx in context_chunks["before"]:
-                full_text_parts.append(ctx["document"])
-            full_text_parts.append(f">>> MAIN RESULT: {result['document']} <<<")
-            for ctx in context_chunks["after"]:
-                full_text_parts.append(ctx["document"])
-
-            enhanced_result["full_context_text"] = "\n\n".join(full_text_parts)
-            enhanced_results["results_with_context"].append(enhanced_result)
-
-        return enhanced_results
+            print(f"Error querying collection: {str(e)}")
+            return []  # Return an empty array instead of raising exception
