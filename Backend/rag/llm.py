@@ -1,6 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
@@ -46,3 +47,58 @@ def ollama_embed(texts, model_name: str = "nomic-embed-text"):
         except Exception as e:
             raise RuntimeError(f"Ollama Embedding-Aufruf fehlgeschlagen: {e}")
     return results
+
+
+def check_ollama_connection() -> bool:
+    """
+    Prüft ob eine Verbindung zu Ollama hergestellt werden kann.
+
+    Returns:
+        bool: True wenn Ollama erreichbar ist, False sonst
+    """
+    try:
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
+
+def get_available_models() -> List[str]:
+    """
+    Holt eine Liste der verfügbaren Modelle von Ollama.
+
+    Returns:
+        List[str]: Liste der verfügbaren Modell-Namen
+
+    Raises:
+        RuntimeError: Bei Fehlern in der Kommunikation mit Ollama
+    """
+    try:
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if "models" not in data:
+            return []
+
+        return [model["name"] for model in data["models"]]
+
+    except Exception as e:
+        raise RuntimeError(f"Konnte verfügbare Modelle nicht abrufen: {e}")
+
+
+def test_model_availability(model_name: str) -> bool:
+    """
+    Testet ob ein spezifisches Modell verfügbar ist.
+
+    Args:
+        model_name: Name des zu testenden Modells
+
+    Returns:
+        bool: True wenn Modell verfügbar ist, False sonst
+    """
+    try:
+        available_models = get_available_models()
+        return model_name in available_models
+    except:
+        return False

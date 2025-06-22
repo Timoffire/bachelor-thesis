@@ -1,15 +1,15 @@
+import json
 from typing import Union, Any
 from vectordb import ChromaDBConnector
 from prompt_engineering import build_prompt
 from metrics import get_stock_metrics
-from llm import call_llm
+from llm import call_llm, test_model_availability, check_ollama_connection
 import os
 from dotenv import load_dotenv
 from query_builder import MetricQueryBuilder
 load_dotenv()
 
 class RAGPipeline:
-    #TODO: Komplette Klasse überarbeiten
     """
     Orchestriert die RAG-Pipeline: Retrieval, Augmentation, Prompting.
     """
@@ -18,7 +18,10 @@ class RAGPipeline:
         self.collection_name = collection_name
         self.embedding_model = embedding_model
         self.llm_model = llm_model
-        self.db_connector = ChromaDBConnector()
+        self.db_connector = ChromaDBConnector(
+            path=self.persist_directory,
+            embedding_model=self.embedding_model
+        )
         self.query_builder = MetricQueryBuilder()
 
     def ingest_pdf_folder(self, folder_path: str):
@@ -74,33 +77,25 @@ class RAGPipeline:
             print(f"Fehler bei der Abfrage: {str(e)}")
             return "", []
 
-    def run(self, ticker: str, metrics: list, embedding_model: str = None, llm_model: str = None) -> dict[
-        str, Union[str, list[Any]]]:
+    def run(self, ticker: str, metrics: list) -> dict[str, Union[str, list[Any]]]:
         stock_metrics = get_stock_metrics(ticker, metrics)
         responses = []
         all_sources = []
 
-        if embedding_model:
-            self.embedding_model = embedding_model
-            self.db_connector = ChromaDBConnector(path = self.persist_directory, embedding_model=self.embedding_model)
-        if llm_model:
-            self.llm_model = llm_model
         for metric in metrics:
-            #query text builder
             query_text = self.query_builder.build_query(ticker, metric)
-            # Get context and sources
-            context, sources = self.query(query_text, n_results=5, include_metadata=True)
-            # Build prompt
+            context, sources = self.query(query_text, n_results=5)
             prompt = build_prompt(ticker, metrics, context, stock_metrics)
-            # Call LLM for each prompt
-            response = call_llm(prompt, model_name= self.llm_model)
-            #List of responses for each metric
+
+            response = call_llm(prompt, model_name=self.llm_model)
+
             responses.append(response)
-            all_sources.append(sources)
+            all_sources.extend(sources)
+
         return {
             'ticker': ticker,
             'responses': responses,
-            'all_sources': list(set(all_sources))  # Entferne Duplikate
+            'all_sources': list(set(all_sources))
         }
 
     def delete_collection(self):
@@ -109,6 +104,55 @@ class RAGPipeline:
     def add_document(self, path: str):
         self.db_connector.add_pdf_to_collection(path)
 
+    def check_health(self) -> str:
+        """
+                Führt einen Health Check für die Pipeline-Komponenten durch und gibt
+                den Status als JSON-String zurück.
 
-    #TODO: Check Health of Backend
-    # def check_health(self):
+                Returns:
+                    str: Ein JSON-String, der den Status der Komponenten beschreibt.
+                """
+        health_status = {
+            "database": {"status": "UNKNOWN", "details": ""},
+            "llm": {"status": "UNKNOWN", "details": ""}
+        }
+
+        # 1. Prüfe ChromaDB Server und Collection
+        try:
+            # Schritt 1: Prüfen, ob der DB-Server erreichbar ist (Standardmethode)
+            self.db_connector.client.heartbeat()
+
+            # Schritt 2: Prüfen, ob die spezifische Collection existiert
+            # Der Versuch, die Collection abzurufen, ist der zuverlässigste Check.
+            self.db_connector.client.get_collection(name=self.collection_name)
+
+            health_status["database"]["status"] = "OK"
+            health_status["database"][
+                "details"] = f"ChromaDB-Server erreichbar und Collection '{self.collection_name}' ist vorhanden."
+
+        except Exception as e:
+            # Fängt Fehler von heartbeat() oder get_collection() ab
+            health_status["database"]["status"] = "FEHLER"
+            health_status["database"][
+                "details"] = f"Fehler bei der Verbindung zur ChromaDB oder Collection nicht gefunden: {e}"
+
+        # 2. Prüfe LLM (Ollama) Verbindung und Modellverfügbarkeit
+        try:
+            if not check_ollama_connection():
+                health_status["llm"]["status"] = "FEHLER"
+                health_status["llm"]["details"] = "Ollama-Server ist nicht erreichbar."
+            else:
+                if test_model_availability(self.llm_model):
+                    health_status["llm"]["status"] = "OK"
+                    health_status["llm"][
+                        "details"] = f"Ollama-Server läuft und Modell '{self.llm_model}' ist verfügbar."
+                else:
+                    health_status["llm"]["status"] = "WARNUNG"
+                    health_status["llm"][
+                        "details"] = f"Ollama-Server läuft, aber das Modell '{self.llm_model}' ist NICHT verfügbar."
+        except Exception as e:
+            health_status["llm"]["status"] = "FEHLER"
+            health_status["llm"]["details"] = f"Ein unerwarteter Fehler beim Prüfen des LLM ist aufgetreten: {e}"
+
+        # Gebe das Ergebnis als schön formatierten JSON-String zurück
+        return json.dumps(health_status, indent=4, ensure_ascii=False)
