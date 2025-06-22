@@ -1,11 +1,11 @@
 from typing import Union, Any
-
 from vectordb import ChromaDBConnector
 from prompt_engineering import build_prompt
 from metrics import get_stock_metrics
 from llm import call_llm
 import os
 from dotenv import load_dotenv
+from query_builder import MetricQueryBuilder
 load_dotenv()
 
 class RAGPipeline:
@@ -19,6 +19,7 @@ class RAGPipeline:
         self.embedding_model = embedding_model
         self.llm_model = llm_model
         self.db_connector = ChromaDBConnector()
+        self.query_builder = MetricQueryBuilder()
 
     def ingest_pdf_folder(self, folder_path: str):
         """
@@ -86,8 +87,7 @@ class RAGPipeline:
             self.llm_model = llm_model
         for metric in metrics:
             #query text builder
-            #TODO: query builder file
-            query_text = build_query_text(metric)
+            query_text = self.query_builder.build_query(ticker, metric)
             # Get context and sources
             context, sources = self.query(query_text, n_results=5, include_metadata=True)
             # Build prompt
