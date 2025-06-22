@@ -109,5 +109,6 @@ class RAGPipeline:
     def add_document(self, path: str):
         self.db_connector.add_pdf_to_collection(path)
 
-    def check_health(self):
-        #TODO: Check Health of Backend
+
+    #TODO: Check Health of Backend
+    # def check_health(self):
