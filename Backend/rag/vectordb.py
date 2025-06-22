@@ -131,7 +131,7 @@ class ChromaDBConnector:
 
         # Add to ChromaDB collection
         try:
-            collection = self.client.get_collection(name="docs")
+            collection = self.client.get_or_create_collection(name="docs")
             collection.add(
                 documents=documents,
                 metadatas=metadatas,
@@ -174,7 +174,7 @@ class ChromaDBConnector:
             query_params = {
                 "query_texts": [query_text],
                 "n_results": n_results,
-                "include": ["documents", "ids"]  # Only include what we need for the 2D array
+                "include": ["documents", "data"]  # Only include what we need for the 2D array
             }
 
             # Execute query

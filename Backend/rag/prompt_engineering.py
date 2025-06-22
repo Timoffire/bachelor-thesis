@@ -3,7 +3,7 @@ import json
 import textwrap
 
 
-def build_prompt_verbessert(ticker: str, metrics: List[str], context: str, metric_values: Dict[str, Any]) -> str:
+def build_prompt(ticker: str, metrics: List[str], context: str, metric_values: Dict[str, Any]) -> str:
     """
     Erstellt einen hochstrukturierten und robusten Prompt für eine detaillierte Finanzanalyse.
 
