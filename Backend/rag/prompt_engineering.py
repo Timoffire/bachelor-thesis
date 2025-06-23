@@ -1,102 +1,95 @@
-from typing import List, Dict, Any
-import json
+from typing import Dict, Any
 import textwrap
 
 
-def build_prompt(ticker: str, metrics: List[str], context: str, metric_values: Dict[str, Any]) -> str:
+def build_prompt(ticker: str, metric_data: Dict[str, str], context: str) -> str:
     """
-    Erstellt einen hochstrukturierten und robusten Prompt für eine detaillierte Finanzanalyse.
+    Erstellt einen hochdetaillierten und robusten Prompt für die Tiefenanalyse einer einzelnen Finanzkennzahl.
 
-    Diese Funktion wurde optimiert für:
-    1.  **Code-Lesbarkeit**: Durch `textwrap.dedent` wird der Prompt-Text im Code sauber ausgerichtet.
-    2.  **Präzisere Anweisungen**: Die Anweisungen an das LLM sind noch direkter und unmissverständlicher formuliert.
-    3.  **Wartbarkeit**: Das Template ist klar strukturiert und lässt sich leicht anpassen.
-    4.  **Robustheit**: Zusätzliche Guardrails, wie die Anweisung, nur JSON auszugeben, minimieren Fehler.
+    Diese Funktion wurde für maximale Detailtiefe und Präzision optimiert:
+    1.  **Fokus auf eine Kennzahl:** Die Funktion ist darauf ausgelegt, eine einzelne Kennzahl intensiv zu beleuchten,
+        was eine tiefere Analyse ermöglicht als bei der Verarbeitung mehrerer Kennzahlen gleichzeitig.
+    2.  **Strukturierte und ausführliche Anweisungen:** Die Anweisungen für das LLM sind in den Sektionen
+        'definition', 'analysis' und 'interpretation' wesentlich detaillierter, um eine umfassende und gut
+        strukturierte Ausgabe zu gewährleisten.
+    3.  **Strikte Anti-Halluzinations-Regeln:** Die Anweisungen betonen wiederholt, dass jede Aussage direkt
+        und ausschließlich auf den bereitgestellten Daten (Kontext und Kennzahl) basieren muss.
+    4.  **Verbesserte Lesbarkeit und Wartbarkeit:** Durch die Verwendung von `textwrap.dedent` und eine klare
+        Struktur bleibt der Prompt-Code übersichtlich und leicht anpassbar.
+    5.  **Logisches Ausgabeformat:** Die Funktion fordert ein einzelnes JSON-Objekt an, was dem Input von einer
+        einzelnen Kennzahl entspricht.
 
     Args:
         ticker (str): Das Aktiensymbol (z.B. "AAPL").
-        metrics (List[str]): Eine Liste der zu analysierenden Finanzmetriken (z.B. ["P/E Ratio"]).
-        context (str): Der Textkontext, der aus der Vektordatenbank abgerufen wurde.
-        metric_values (Dict[str, Any]): Ein Dictionary mit den über eine API abgerufenen Kennzahlen.
+        metric_data (Dict[str, str]): Ein Dictionary, das genau eine zu analysierende Finanzmetrik und ihren Wert
+                                     enthält (z.B. `{'PERatio': '31.36'}`).
+        context (str): Der Textkontext, der aus Finanzdokumenten (z.B. Quartalsberichten) extrahiert wurde.
 
     Returns:
-        str: Der vollständig formatierte, optimierte Prompt für das LLM.
-    """
-    # 1. Datenvorbereitung: Logik für die dynamischen Teile des Prompts bündeln
-    metrics_str = ", ".join(metrics) or "Keine spezifischen Metriken angefordert."
+        str: Der vollständig formatierte, detailorientierte Prompt für das LLM.
 
-    # Sicherstellen, dass der Kontext-String nicht leer ist
+    Raises:
+        ValueError: Wenn `metric_data` nicht genau ein Element enthält.
+    """
+    # 1. Validierung und Datenvorbereitung
+    if not isinstance(metric_data, dict) or len(metric_data) != 1:
+        raise ValueError("Das 'metric_data'-Argument muss ein Dictionary mit genau einem Schlüssel-Wert-Paar sein.")
+
+    # Extrahiere den Namen und den Wert der einzigen Metrik
+    metric_name = list(metric_data.keys())[0]
+    metric_value = list(metric_data.values())[0]
+
+    # Stelle sicher, dass der Kontext-String nicht leer ist
     context_str = context.strip() if context and context.strip() else "Kein relevanter Kontext in den Finanzdokumenten gefunden."
 
-    # Kennzahlen für eine saubere Darstellung formatieren.
-    # Es wird für jede angeforderte Metrik ein Eintrag erzeugt, auch wenn kein Wert vorliegt.
-    metric_values_str = "\n".join(
-        [f"- {metric}: {metric_values.get(metric, 'N/A')}" for metric in metrics]
-    ) if metric_values and metrics else "Keine aktuellen Kennzahlen verfügbar."
-
-    # 2. Prompt-Template: textwrap.dedent entfernt führende Leerzeichen aus mehrzeiligen
-    #    Strings, was die Lesbarkeit im Code erheblich verbessert.
-    #    Die Anweisungen wurden für maximale Klarheit und zur Vermeidung von Halluzinationen geschärft.
+    # 2. Detailliertes Prompt-Template
+    # Die Anweisungen wurden erweitert, um eine tiefere Analyse zu erzwingen.
     prompt_template = textwrap.dedent(f"""
         **SYSTEM-ANWEISUNG**
-        Rolle: Du bist ein präziser Finanzanalyse-Bot. Deine Aufgabe ist es, die unten stehenden Eingabedaten objektiv zu analysieren.
+        Rolle: Du bist ein hochpräziser Finanzanalyst-Bot. Deine einzige Aufgabe ist die objektive Analyse der unten stehenden Daten.
         Regeln:
-        1.  Halte dich strikt an die bereitgestellten Daten. Verwende kein externes Wissen.
-        2.  Erfinde oder schlussfolgere keine Informationen, die nicht explizit in den Daten enthalten sind.
-        3.  Deine Ausgabe MUSS ein einziges, valides JSON-Array sein, ohne einleitenden oder nachfolgenden Text.
+        1.  **Kein externes Wissen:** Du darfst AUSSCHLIESSLICH die Informationen aus den Abschnitten "Kontext aus Finanzdokumenten" und "Aktuelle Kennzahl" verwenden.
+        2.  **Keine Halluzination:** Erfinde, schlussfolgere oder interpretiere nichts, was nicht explizit in den bereitgestellten Daten belegt ist. Wenn die Daten keine Aussage zulassen, gib dies explizit an.
+        3.  **Nur JSON:** Deine Ausgabe MUSS ausschließlich ein einziges, valides JSON-Objekt sein. Gib KEINEN anderen Text, keine Erklärungen, keine Markdown-Formatierung und keine Code-Blöcke aus. Beginne direkt mit {{ und ende mit }}.
 
         ---
 
         **AUFGABENSTELLUNG**
-        Analysiere die Aktie mit dem Ticker **{ticker}** für die folgenden Finanzkennzahlen: **{metrics_str}**.
-        Gib das Ergebnis als JSON-Array zurück, wobei jedes Objekt eine Kennzahl analysiert.
+        Führe eine detaillierte Analyse der Aktie mit dem Ticker **{ticker}** für die Finanzkennzahl **{metric_name}** durch.
+        Gib das Ergebnis ausschließlich als JSON-Objekt zurück.
 
         ---
 
         **EINGABEDATEN**
 
-        **1. Kontext aus Finanzdokumenten:**
+        **1. Kontext aus Finanzdokumenten (z.B. Geschäftsberichte):**
         <dokumente>
         {context_str}
         </dokumente>
 
-        **2. Aktuelle Kennzahlen (API-Daten):**
-        <kennzahlen>
-        {metric_values_str}
-        </kennzahlen>
+        **2. Aktuelle Kennzahl (API-Daten):**
+        <kennzahl>
+        - {metric_name}: {metric_value}
+        </kennzahl>
 
         ---
 
-        **AUSGABEFORMAT UND ANWEISUNGEN**
-        Generiere ein valides JSON-Array von Objekten. Halte dich exakt an diese Struktur und Feldanweisungen:
+        **AUSGABEFORMAT UND DETAILLIERTE ANWEISUNGEN**
+        Generiere ein valides JSON-Objekt. Halte dich exakt an diese Struktur und die folgenden detaillierten Anweisungen für jedes Feld:
 
-        - `metric`: (String) Der Name der Kennzahl.
-        - `value`: (String, Number oder "N/A") Der exakte Wert aus `<kennzahlen>`.
-        - `definition`: (String) Eine kurze, allgemeine Definition der Kennzahl (1-2 Sätze).
-        - `analysis`: (String) Eine objektive Analyse, die den Wert aus `<kennzahlen>` mit Informationen aus `<dokumente>` vergleicht oder in Beziehung setzt.
-        - `interpretation`: (String) Eine spezifische Interpretation für die Aktie. Diese MUSS sich direkt auf eine Aussage in `<dokumente>` stützen. **Wenn der Kontext keine Interpretation zulässt, gib exakt den String "Keine spezifische Interpretation im bereitgestellten Kontext gefunden." zurück.**
+        - `metric`: (String) Der exakte Name der Kennzahl: "{metric_name}".
+        - `value`: (String oder Number) Der exakte Wert aus `<kennzahl>`: {metric_value if metric_value != "N/A" else '"N/A"'}.
+        - `definition`: (String) **Ausführliche Definition:** Erkläre die Kennzahl umfassend, aber verständlich. Beschreibe, was sie misst, wie sie konzeptionell berechnet wird (z.B. "Aktienkurs geteilt durch Gewinn pro Aktie") und warum sie für Investoren eine wichtige Messgröße ist.
+        - `analysis`: (String) **Ausführliche Analyse:** Führe eine objektive Analyse durch, die den Wert aus `<kennzahl>` mit den Informationen aus `<dokumente>` verknüpft. Deine Analyse muss folgende Schritte beinhalten, sofern die Daten dies zulassen:
+            1.  Nenne den aktuellen Wert der Kennzahl.
+            2.  Vergleiche den Wert mit historischen Daten, Branchendurchschnitten oder Zielen, die im Kontext explizit erwähnt werden.
+            3.  Stelle eine Verbindung zu konkreten Aussagen im Kontext her (z.B. "Der hohe Wert von {metric_value} korreliert mit der im Quartalsbericht genannten Investition in neue Märkte.").
+            4.  Wenn der Kontext keinen Vergleich oder keine Verbindung erlaubt, gib exakt an: "Die bereitgestellten Dokumente enthalten keine Informationen für einen Vergleich oder eine weiterführende Analyse des Wertes."
+        - `interpretation`: (String) **Spezifische Interpretation und Implikation:** Leite eine spezifische Interpretation für die Aktie ab. **Diese Interpretation MUSS sich auf eine direkte Aussage oder einen eindeutigen Zusammenhang im `<dokumente>`-Abschnitt stützen.** Erkläre, was die Analyse für das Unternehmen bedeutet (z.B. Anzeichen für Überbewertung, starkes Wachstumspotenzial, finanzielle Stabilität). **Wenn der Kontext keine fundierte Interpretation zulässt, gib exakt den String "Keine spezifische Interpretation im bereitgestellten Kontext gefunden." zurück.**
 
-        **BEISPIEL FÜR DAS GEWÜNSCHTE JSON-FORMAT:**
-        ```json
-        [
-          {{
-            "metric": "P/E Ratio",
-            "value": 15.7,
-            "definition": "Das Kurs-Gewinn-Verhältnis (KGV) setzt den Aktienkurs eines Unternehmens ins Verhältnis zu seinem Gewinn pro Aktie.",
-            "analysis": "Das aktuelle KGV von 15.7 liegt unter dem Branchendurchschnitt von 20, wie im Quartalsbericht Q4 erwähnt.",
-            "interpretation": "Laut dem Management-Kommentar im Dokument deutet das niedrigere KGV auf eine mögliche Unterbewertung oder geringere Wachstumserwartungen im Vergleich zu Wettbewerbern hin."
-          }},
-          {{
-            "metric": "Dividend Yield",
-            "value": "N/A",
-            "definition": "Die Dividendenrendite gibt das Verhältnis der Dividende zum Aktienkurs an.",
-            "analysis": "Für die Dividendenrendite wurde kein Wert bereitgestellt.",
-            "interpretation": "Keine spezifische Interpretation im bereitgestellten Kontext gefunden."
-          }}
-        ]
-        ```
+        **WICHTIG:** Antworte ausschließlich mit dem JSON-Objekt. Kein anderer Text ist erlaubt. Keine Erklärungen, keine Einleitungen, keine Code-Blöcke.
 
-        **FINALE ANWEISUNG:** Beginne deine Antwort direkt mit `[` und beende sie mit `]`.
+        **FINALE ANWEISUNG:** Deine Antwort muss mit {{ beginnen und mit }} enden. Keine andere Formatierung oder Text.
     """)
 
     return prompt_template

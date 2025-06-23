@@ -82,17 +82,22 @@ class RAGPipeline:
         responses = []
         all_sources = []
 
-        for metric in metrics:
-            query_text = self.query_builder.build_query(ticker, metric)
+        # Iteration über die Dictionary-Items (Name und Wert der Metriken)
+        for metric_name, metric_value in stock_metrics.items():
+            query_text = self.query_builder.build_query(ticker, metric_name)
             context, sources = self.query(query_text, n_results=5)
-            prompt = build_prompt(ticker, metrics, context, stock_metrics)
+
+            # Erstelle ein Dictionary für eine einzelne Metrik, wie von build_prompt erwartet
+            metric_data = {metric_name: metric_value}
+            prompt = build_prompt(ticker, metric_data, context)
 
             response = call_llm(prompt, model_name=self.llm_model)
 
-            responses.append(response)
+            responses.append(json.loads(response))
             all_sources.extend(sources)
 
         return {
+            #TODO: Responses mit sources zusammen zurückgeben, damit man die jeweilige Quelle zur Response hat und nicht zu allen
             'ticker': ticker,
             'responses': responses,
             'all_sources': list(set(all_sources))

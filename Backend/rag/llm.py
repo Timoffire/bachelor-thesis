@@ -23,7 +23,7 @@ def call_llm(prompt: str, model_name: str = "llama3", temperature: float = 0.5, 
         "stream": False
     }
     try:
-        response = requests.post(url, json=payload, timeout=120)
+        response = requests.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
         return data["message"]["content"].strip()
