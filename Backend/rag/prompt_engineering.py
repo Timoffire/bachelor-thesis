@@ -43,7 +43,6 @@ def build_prompt(ticker: str, metric_data: Dict[str, str], context: str) -> str:
     context_str = context.strip() if context and context.strip() else "Kein relevanter Kontext in den Finanzdokumenten gefunden."
 
     # 2. Detailliertes Prompt-Template
-    # Die Anweisungen wurden erweitert, um eine tiefere Analyse zu erzwingen.
     prompt_template = textwrap.dedent(f"""
         **SYSTEM-ANWEISUNG**
         Rolle: Du bist ein hochpräziser Finanzanalyst-Bot. Deine einzige Aufgabe ist die objektive Analyse der unten stehenden Daten.
@@ -75,17 +74,27 @@ def build_prompt(ticker: str, metric_data: Dict[str, str], context: str) -> str:
         ---
 
         **AUSGABEFORMAT UND DETAILLIERTE ANWEISUNGEN**
+
         Generiere ein valides JSON-Objekt. Halte dich exakt an diese Struktur und die folgenden detaillierten Anweisungen für jedes Feld:
 
         - `metric`: (String) Der exakte Name der Kennzahl: "{metric_name}".
+
         - `value`: (String oder Number) Der exakte Wert aus `<kennzahl>`: {metric_value if metric_value != "N/A" else '"N/A"'}.
-        - `definition`: (String) **Ausführliche Definition:** Erkläre die Kennzahl umfassend, aber verständlich. Beschreibe, was sie misst, wie sie konzeptionell berechnet wird (z.B. "Aktienkurs geteilt durch Gewinn pro Aktie") und warum sie für Investoren eine wichtige Messgröße ist.
-        - `analysis`: (String) **Ausführliche Analyse:** Führe eine objektive Analyse durch, die den Wert aus `<kennzahl>` mit den Informationen aus `<dokumente>` verknüpft. Deine Analyse muss folgende Schritte beinhalten, sofern die Daten dies zulassen:
-            1.  Nenne den aktuellen Wert der Kennzahl.
-            2.  Vergleiche den Wert mit historischen Daten, Branchendurchschnitten oder Zielen, die im Kontext explizit erwähnt werden.
-            3.  Stelle eine Verbindung zu konkreten Aussagen im Kontext her (z.B. "Der hohe Wert von {metric_value} korreliert mit der im Quartalsbericht genannten Investition in neue Märkte.").
-            4.  Wenn der Kontext keinen Vergleich oder keine Verbindung erlaubt, gib exakt an: "Die bereitgestellten Dokumente enthalten keine Informationen für einen Vergleich oder eine weiterführende Analyse des Wertes."
-        - `interpretation`: (String) **Spezifische Interpretation und Implikation:** Leite eine spezifische Interpretation für die Aktie ab. **Diese Interpretation MUSS sich auf eine direkte Aussage oder einen eindeutigen Zusammenhang im `<dokumente>`-Abschnitt stützen.** Erkläre, was die Analyse für das Unternehmen bedeutet (z.B. Anzeichen für Überbewertung, starkes Wachstumspotenzial, finanzielle Stabilität). **Wenn der Kontext keine fundierte Interpretation zulässt, gib exakt den String "Keine spezifische Interpretation im bereitgestellten Kontext gefunden." zurück.**
+
+        - `definition`: (String) **Ausführliche Definition:** Erkläre die Kennzahl umfassend, aber verständlich. Beschreibe, was sie misst, wie sie konzeptionell berechnet wird und warum sie für Investoren eine wichtige Messgröße ist.
+
+        - `analysis`: (String) **Ausführliche Analyse:** Führe eine objektive Einordnung des Wertes durch, die den Wert aus `<kennzahl>` mit den Informationen aus `<dokumente>` verknüpft. Deine Analyse muss folgende Schritte beinhalten, sofern die Daten dies zulassen:
+        1. Nenne den aktuellen Wert der Kennzahl.
+        2. Ordne den Wert in einen branchenüblichen oder theoretischen Kontext ein (z.B. "Ein Wert über X gilt generell als hoch/niedrig").
+        3. Stelle eine Verbindung zu konkreten Aussagen im Kontext her (z.B. "Der Wert von {metric_value} steht im Einklang mit der im Quartalsbericht genannten Strategie zur Marktexpansion.").
+        4. Wenn der Kontext keine Verbindung oder Einordnung erlaubt, gib exakt an: "Die bereitgestellten Dokumente enthalten keine Informationen für eine weiterführende Einordnung oder Analyse des Wertes."
+
+        - `interpretation`: (String) **Spezifische Interpretation und Implikation:** Leite eine spezifische 
+        Interpretation für die Aktie ab. **Diese Interpretation MUSS sich auf eine direkte Aussage oder einen 
+        eindeutigen Zusammenhang im `<dokumente>`-Abschnitt stützen.** Erkläre, was die Analyse für das Unternehmen 
+        bedeutet (z.B. Anzeichen für solide Finanzlage, Hinweise auf Wachstumspotenzial, mögliche Risiken). **Wenn 
+        der Kontext keine fundierte Interpretation zulässt, gib exakt den String "Keine spezifische Interpretation im 
+        bereitgestellten Kontext gefunden." zurück.**
 
         **WICHTIG:** Antworte ausschließlich mit dem JSON-Objekt. Kein anderer Text ist erlaubt. Keine Erklärungen, keine Einleitungen, keine Code-Blöcke.
 
