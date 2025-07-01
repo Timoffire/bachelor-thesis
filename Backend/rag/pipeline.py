@@ -86,12 +86,14 @@ class RAGPipeline:
 
         # Iteration über die Dictionary-Items (Name und Wert der Metriken)
         for metric_name, metric_value in stock_metrics.items():
+            #TODO: Query Builder auf jeweilige Metriken anpassen
             query_text = self.query_builder.build_query(ticker, metric_name)
             logging.info("Built Query Text")
             context, sources = self.query(query_text, n_results=5)
             logging.info("Finished Query")
             # Erstelle ein Dictionary für eine einzelne Metrik, wie von build_prompt erwartet
             metric_data = {metric_name: metric_value}
+            # TODO:Prompt Builder auf jeweilige Metriken anpassen
             prompt = build_prompt(ticker, metric_data, context)
             logging.info("Built Prompt")
             response = call_llm(prompt, model_name=self.llm_model)
