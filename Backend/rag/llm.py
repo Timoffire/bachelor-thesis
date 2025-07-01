@@ -2,13 +2,12 @@ import os
 import requests
 from dotenv import load_dotenv
 from typing import List
+import logging
+import json
 
 load_dotenv()
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-
-
-import json
 
 def call_llm(prompt: str, model_name: str = "llama3", temperature: float = 0.5, max_tokens: int = 512) -> str:
     """
@@ -24,6 +23,7 @@ def call_llm(prompt: str, model_name: str = "llama3", temperature: float = 0.5, 
     }
     try:
         response = requests.post(url, json=payload)
+        logging.info("Request sent to Ollama")
         response.raise_for_status()
         data = response.json()
         return data["message"]["content"].strip()

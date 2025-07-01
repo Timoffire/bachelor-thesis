@@ -7,7 +7,9 @@ from llm import call_llm, test_model_availability, check_ollama_connection
 import os
 from dotenv import load_dotenv
 from query_builder import MetricQueryBuilder
+import logging
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 class RAGPipeline:
     """
@@ -79,20 +81,22 @@ class RAGPipeline:
 
     def run(self, ticker: str, metrics: list) -> dict[str, Union[str, list[Any]]]:
         stock_metrics = get_stock_metrics(ticker, metrics)
+        logging.info("Received Metrics")
         responses = []
         all_sources = []
 
         # Iteration über die Dictionary-Items (Name und Wert der Metriken)
         for metric_name, metric_value in stock_metrics.items():
             query_text = self.query_builder.build_query(ticker, metric_name)
+            logging.info("Built Query Text")
             context, sources = self.query(query_text, n_results=5)
-
+            logging.info("Finished Query")
             # Erstelle ein Dictionary für eine einzelne Metrik, wie von build_prompt erwartet
             metric_data = {metric_name: metric_value}
             prompt = build_prompt(ticker, metric_data, context)
-
+            logging.info("Built Prompt")
             response = call_llm(prompt, model_name=self.llm_model)
-
+            logging.info("Got response from LLM")
             responses.append(json.loads(response))
             all_sources.extend(sources)
 

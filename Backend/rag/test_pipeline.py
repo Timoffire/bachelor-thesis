@@ -3,7 +3,6 @@ import json
 
 if __name__ == "__main__":
     pipeline = RAGPipeline()
-    pipeline.add_document("/Users/timmichalow/Desktop/Uni/Bachelorarbeit/Projekt Bachelor/Literatur/Fundamentalanalyse.pdf")
     result = pipeline.run(ticker="AAPL", metrics=["KGV"])
 
     # Nur die responses ausgeben

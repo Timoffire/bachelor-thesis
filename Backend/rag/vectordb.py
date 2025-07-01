@@ -2,6 +2,7 @@ import chromadb
 import PyPDF2
 from typing import List, Optional, Any
 import hashlib
+import logging
 
 class ChromaDBConnector:
     """
@@ -93,13 +94,14 @@ class ChromaDBConnector:
 
         # Extract text from PDF
         pdf_text = extract_text_from_pdf(pdf_path)
+        logging.info(f"Extracted {len(pdf_text)} characters from {pdf_path}")
 
         if not pdf_text:
             raise ValueError("No text could be extracted from the PDF")
 
         # Split into chunks
         text_chunks = chunk_text(pdf_text, chunk_size, chunk_overlap)
-
+        logging.info(f"Split into {len(text_chunks)} chunks from {pdf_path}")
         # Prepare documents for ChromaDB
         documents = []
         metadatas = []
@@ -137,8 +139,7 @@ class ChromaDBConnector:
                 metadatas=metadatas,
                 ids=ids
             )
-
-            print(f"Successfully added {len(text_chunks)} chunks from {pdf_path} to collection")
+            logging.info(f"Added {len(documents)} chunks to ChromaDB collection")
             return ids
 
         except Exception as e:
@@ -146,7 +147,7 @@ class ChromaDBConnector:
 
     def delete_collection(self, collection_name = "docs"):
         self.client.delete_collection(name=collection_name)
-        print("Collection deleted")
+        logging.info(f"Deleted collection '{collection_name}' from ChromaDB")
 
     def query_collection(
             self,
@@ -179,7 +180,7 @@ class ChromaDBConnector:
 
             # Execute query
             results = collection.query(**query_params)
-
+            logging.info(f"Query done")
             # Format results as 2D array [document_id, document_text]
             formatted_array = []
 
@@ -187,7 +188,7 @@ class ChromaDBConnector:
                 # ChromaDB returns nested lists, so we access the first (and usually only) query result
                 ids = results['ids'][0] if results['ids'] else []
                 documents = results['documents'][0] if results['documents'] else []
-
+                logging.info(f"Got {len(ids)} results")
                 # Ensure both lists have the same length
                 min_length = min(len(ids), len(documents))
 

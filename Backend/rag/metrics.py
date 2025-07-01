@@ -2,6 +2,7 @@ import os
 import requests
 from typing import List
 from dotenv import load_dotenv
+import logging
 
 # Mapping von Frontend-Metriknamen zu Alphavantage-API-Namen
 # Ergänze nach Bedarf weitere Metriken!
@@ -29,7 +30,7 @@ def get_stock_metrics(ticker: str, metrics: List[str]) -> dict:
     # General Company information
     url_company = f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={api_key}'
     r_company = requests.get(url_company)
-    
+    logging.info("Request done")
     # Metriknamen vom Frontend in Alphavantage-Namen umwandeln
     mapped_metrics = [METRIC_NAME_MAP_GENERAL.get(m, m) for m in metrics]
 
