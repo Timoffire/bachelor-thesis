@@ -82,8 +82,7 @@ class RAGPipeline:
     def run(self, ticker: str, metrics: list) -> dict[str, Union[str, list[Any]]]:
         stock_metrics = get_stock_metrics(ticker, metrics)
         logging.info("Received Metrics")
-        responses = []
-        all_sources = []
+        metric_responses = []
 
         # Iteration über die Dictionary-Items (Name und Wert der Metriken)
         for metric_name, metric_value in stock_metrics.items():
@@ -97,14 +96,16 @@ class RAGPipeline:
             logging.info("Built Prompt")
             response = call_llm(prompt, model_name=self.llm_model)
             logging.info("Got response from LLM")
-            responses.append(json.loads(response))
-            all_sources.extend(sources)
-
+            # Kombiniere Response mit ihren spezifischen Quellen
+            metric_responses.append({
+                'metric_name': metric_name,
+                'metric_value': metric_value,
+                'response': json.loads(response),
+                'sources': sources
+            })
         return {
-            #TODO: Responses mit sources zusammen zurückgeben, damit man die jeweilige Quelle zur Response hat und nicht zu allen
             'ticker': ticker,
-            'responses': responses,
-            'all_sources': list(set(all_sources))
+            'metric_responses': metric_responses
         }
 
     def delete_collection(self):
