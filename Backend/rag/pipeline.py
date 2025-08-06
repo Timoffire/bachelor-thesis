@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 from query_builder import MetricQueryBuilder
 import logging
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
 
 class RAGPipeline:
     """

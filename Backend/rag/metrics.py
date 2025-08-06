@@ -1,30 +1,138 @@
 import os
-import requests
 import logging
-import statistics  # Importiert für korrekte Median-Berechnung
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+import pandas as pd
 from dotenv import load_dotenv
 import yfinance as yf
-from datetime import datetime
+import wbdata
 
 # Logging-Konfiguration für bessere Übersicht
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class CompanyMetricsRetriever:
-    def __init__(self):
-        #TODO: Load Keys
-        #TODO: Innit Logger
+    def __init__(self, ticker: str):
+        #Load Keys
+        load_dotenv()
+        self.fmp_key = os.getenv("FMP_API_KEY")
+        self.fmp_base_url = "https://financialmodelingprep.com/api/v3"
+        self.stock = yf.Ticker(ticker)
+        if not self.fmp_key:
+            raise ValueError(
+                "API-Key for FMP not found. "
+                "Please add the key in the .env file."
+            )
 
-    def get_current_metrics(self, ticker: str) -> Dict[str, Any]:
+    def get_current_metrics(self) -> Optional[Dict]:
         #TODO: Load Metrics via API and return them in a Dictionary
-        #TODO: Load Company Info
+        info = self.stock.info
+        # Mapping von unseren standardisierten Namen zu den yfinance-Feldnamen.
+        metric_mapping = {
+            'revenue': info.get('totalRevenue'),
+            'net_income': info.get('netIncomeToCommon'),
+            'total_debt': info.get('totalDebt'),
+            'free_cash_flow': info.get('freeCashflow'),
+            'roe': info.get('returnOnEquity'),
+            'roa': info.get('returnOnAssets'),
+            'debt_to_equity': info.get('debtToEquity'),
+            'current_ratio': info.get('currentRatio'),
+            'market_cap': info.get('marketCap'),
+            'pe_ratio': info.get('trailingPE'),
+            'pb_ratio': info.get('priceToBook'),
+            'dividend_yield': info.get('dividendYield'),
+            'beta': info.get('beta'),
+            'price_to_sales': info.get('priceToSalesTrailing12Months')
+            # TODO: choose only 6 relevant stock informations
+        }
+        # TODO: Load Company Info
+        company_info = {
+            'name': info.get('longName'),
+            'sector': info.get('sector'),
+            'industry': info.get('industry'),
+            'employees': info.get('fullTimeEmployees'),
+            'market_cap': info.get('marketCap'),
+            'description': (info.get('longBusinessSummary') or "Keine Beschreibung verfügbar.")[:500] + '...',
+            'headquarters': f"{info.get('city', '')}, {info.get('state', '')}, {info.get('country', '')}",
+            'website': info.get('website')
+        }
+        return {
+            "metrics": metric_mapping,
+            "company_info": company_info
+        }
 
-    def get_historical_metrics(self, ticker: str):
+    def get_historical_metrics(self):
         #TODO: Load Historic Metrics and return them in a Dictionary
+        stock = self.stock
+        income = stock.financials
+        balance = stock.balance_sheet
+        cashflow = stock.cashflow
 
-    def get_peer_metrics(self, ticker: str):
+        metrics_by_year = {}
+
+        for year in income.columns:
+            metrics_by_year[year.year] = {}
+
+            revenue = income.get(year).get("Total Revenue")
+            net_income = income.get(year).get("Net Income")
+            equity = balance.get(year).get("Total Stockholder Equity")
+            total_debt = balance.get(year).get("Total Debt")
+            fcf = cashflow.get(year).get("Free Cash Flow")
+            #TODO: Add more metrics
+
+            metrics_by_year[year.year] = {
+                "revenue": revenue,
+                "net_income": net_income,
+                "total_debt": total_debt,
+                "free_cash_flow": fcf,
+                # TODO: Add more metrics
+            }
+
+        return metrics_by_year
+
+    def get_peer_metrics(self):
         #TODO: find Peer stocks and then get their metrics to compare them later
+        info = self.stock.info
+        sector = info.get("sector")
+        # Dictionary mapping GICS sectors to well-known ETFs
+        sector_etf_map = {
+            "Technology": "XLK",
+            "Health Care": "XLV",
+            "Financial Services": "XLF",
+            "Consumer Cyclical": "XLY",
+            "Consumer Defensive": "XLP",
+            "Energy": "XLE",
+            "Industrials": "XLI",
+            "Materials": "XLB",
+            "Utilities": "XLU",
+            "Real Estate": "XLRE",
+            "Communication Services": "XLC"
+        }
+        etf_ticker = sector_etf_map.get(sector)
+        etf = yf.Ticker(etf_ticker)
+        info = etf.info
+        insights = {
+            "Sector": sector,
+            "ETF Symbol": etf_ticker,
+            "ETF Name": info.get("longName", "N/A"),
+            "YTD Return": info.get("ytdReturn", "N/A"),
+            "1Y Return": info.get("threeYearAverageReturn", "N/A"),
+            "Total Assets": info.get("totalAssets", "N/A"),
+            "Dividend Yield": info.get("dividendYield", "N/A"),
+            "Beta": info.get("beta", "N/A")
+        }
+        return insights
 
-    def get_macro_metrics(self, ticker: str):
-        #TODO: Find the right Country/Market/Sector and load information about them
+    def get_macro_info(self):
+        info = self.stock.info
+        country = info.get("country")
+        return country
+
+
+    #def get_metrics(self, ticker: str):
+        #orchestrates the functions
+        #formats answer --> differ between specific metric and general context (which gets added to every metric)
+        #remove all N/A values from the metrics dictionary
+        #returns it for later process
+
+
+

@@ -1,6 +1,7 @@
-from pipeline import RAGPipeline
-import json
+from metrics import CompanyMetricsRetriever
 
 if __name__ == "__main__":
-    pipeline = RAGPipeline()
-    result = pipeline.run(ticker="AAPL", metrics=["Marktkapitalisierung"])
+    print("Starte Skript...")
+    metric = CompanyMetricsRetriever("AAPL")
+    response = metric.get_macro_info()
+    print(response)
