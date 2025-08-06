@@ -1,27 +1,13 @@
-import os
+
 import logging
 from typing import List, Dict, Any, Optional
 import pandas as pd
-from dotenv import load_dotenv
 import yfinance as yf
 import wbdata
 
-# Logging-Konfiguration für bessere Übersicht
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
 class CompanyMetricsRetriever:
     def __init__(self, ticker: str):
-        #Load Keys
-        load_dotenv()
-        self.fmp_key = os.getenv("FMP_API_KEY")
-        self.fmp_base_url = "https://financialmodelingprep.com/api/v3"
         self.stock = yf.Ticker(ticker)
-        if not self.fmp_key:
-            raise ValueError(
-                "API-Key for FMP not found. "
-                "Please add the key in the .env file."
-            )
 
     def get_current_metrics(self) -> Optional[Dict]:
         #TODO: Load Metrics via API and return them in a Dictionary
