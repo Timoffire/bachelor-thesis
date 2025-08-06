@@ -2,7 +2,7 @@ import json
 from typing import Union, Any
 from vectordb import ChromaDBConnector
 from prompt_engineering import build_prompt
-from metrics import get_stock_metrics
+from metrics import CompanyMetricsRetriever
 from llm import call_llm, test_model_availability, check_ollama_connection
 import os
 from dotenv import load_dotenv
@@ -83,35 +83,48 @@ class RAGPipeline:
             print(f"Fehler bei der Abfrage: {str(e)}")
             return "", []
 
-    def run(self, ticker: str, metrics: list) -> dict[str, Union[str, list[Any]]]:
-        stock_metrics = get_stock_metrics(ticker, metrics)
+    def run(self, ticker: str) -> dict[str, Union[str, list[Any]]]:
+        retriever = CompanyMetricsRetriever(ticker)
+        stock_metrics = retriever.get_metrics()
         logging.info("Received Metrics")
-        metric_responses = []
+        # Zwischenspeicher für alle Metriken mit ihren Kontexten und Quellen
+        metric_data = {}
 
-        # Iteration über die Dictionary-Items (Name und Wert der Metriken)
+        # 1. Für jede Metrik separat Retrieval durchführen
+        #TODO: überarbeiten für jede Metrik
         for metric_name, metric_value in stock_metrics.items():
-            #TODO: Query Builder auf jeweilige Metriken anpassen
             query_text = self.query_builder.build_query(ticker, metric_name)
-            logging.info("Built Query Text")
+            logging.info(f"Built Query Text for {metric_name}")
+
             context, sources = self.query(query_text, n_results=5)
-            logging.info("Finished Query")
-            # Erstelle ein Dictionary für eine einzelne Metrik, wie von build_prompt erwartet
-            metric_data = {metric_name: metric_value}
-            # TODO:Prompt Builder auf jeweilige Metriken anpassen
-            prompt = build_prompt(ticker, metric_data, context)
-            logging.info("Built Prompt")
-            response = call_llm(prompt, model_name=self.llm_model)
-            logging.info("Got response from LLM")
-            # Kombiniere Response mit ihren spezifischen Quellen
-            metric_responses.append({
-                'metric_name': metric_name,
-                'metric_value': metric_value,
-                'response': json.loads(response),
+            logging.info(f"Finished Query for {metric_name}")
+
+            metric_data[metric_name] = {
+                'value': metric_value,
+                'context': context,
                 'sources': sources
-            })
+            }
+
+        # 2. Einen einzigen Prompt bauen, der alle Metriken inkl. Kontext kombiniert
+        #TODO: Prompt-Engineering verbessern
+        prompt = build_prompt(ticker,
+                              metric_data)
+        logging.info("Built combined Prompt")
+
+        # 3. Einmal LLM aufrufen
+        response = call_llm(prompt, model_name=self.llm_model)
+        logging.info("Got response from LLM")
+
+        try:
+            parsed_response = json.loads(response)
+        except json.JSONDecodeError:
+            logging.error("Response konnte nicht als JSON geparst werden. Rohantwort:\n" + response)
+            parsed_response = {"error": "Invalid JSON", "raw_response": response}
+
         return {
             'ticker': ticker,
-            'metric_responses': metric_responses
+            'metrics': metric_data,
+            'response': parsed_response,
         }
 
     def delete_collection(self):
@@ -172,3 +185,4 @@ class RAGPipeline:
 
         # Gebe das Ergebnis als schön formatierten JSON-String zurück
         return json.dumps(health_status, indent=4, ensure_ascii=False)
+

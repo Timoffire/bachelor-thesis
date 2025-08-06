@@ -1,3 +1,4 @@
+from pipeline import RAGPipeline
 
-if __name__ == "__main__":
-    print("HALLO")
+rag = RAGPipeline()
+rag.run('AAPL')

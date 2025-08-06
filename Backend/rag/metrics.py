@@ -1,9 +1,8 @@
 
-import logging
-from typing import List, Dict, Any, Optional
-import pandas as pd
+from typing import Dict, Optional
 import yfinance as yf
-import wbdata
+import requests
+import pycountry
 
 class CompanyMetricsRetriever:
     def __init__(self, ticker: str):
@@ -47,7 +46,6 @@ class CompanyMetricsRetriever:
         }
 
     def get_historical_metrics(self):
-        #TODO: Load Historic Metrics and return them in a Dictionary
         stock = self.stock
         income = stock.financials
         balance = stock.balance_sheet
@@ -72,11 +70,11 @@ class CompanyMetricsRetriever:
                 "free_cash_flow": fcf,
                 # TODO: Add more metrics
             }
+        #TODO: calculate ratios
 
         return metrics_by_year
 
     def get_peer_metrics(self):
-        #TODO: find Peer stocks and then get their metrics to compare them later
         info = self.stock.info
         sector = info.get("sector")
         # Dictionary mapping GICS sectors to well-known ETFs
@@ -108,17 +106,56 @@ class CompanyMetricsRetriever:
         }
         return insights
 
+    def get_indicator_value(self, country_code, indicator, year):
+        url = f'https://api.worldbank.org/v2/country/{country_code}/indicator/{indicator}?format=json&per_page=1&date={year}'
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+        if isinstance(data, list) and len(data) > 1 and data[1]:
+            return data[1][0].get('value')
+        return None
+
     def get_macro_info(self):
         info = self.stock.info
-        country = info.get("country")
-        return country
+        yf_country = info.get('country')
+        year = 2024
+        try:
+            country = pycountry.countries.get(name=yf_country).alpha_3
+        except:
+            return {"error": f"Invalid country name: {yf_country}"}
+
+        indicators = {
+            "gdp_growth": "NY.GDP.MKTP.KD.ZG",
+            "inflation_rate": "FP.CPI.TOTL.ZG",
+            "imports": "NE.IMP.GNFS.ZS",
+            "exports": "NE.EXP.GNFS.ZS"
+        }
+
+        results = {"country": country}
+        for key, code in indicators.items():
+            value = self.get_indicator_value(country, code, year)
+            results[key] = value
+
+        return results
 
 
-    #def get_metrics(self, ticker: str):
+    def get_metrics(self):
         #orchestrates the functions
-        #formats answer --> differ between specific metric and general context (which gets added to every metric)
-        #remove all N/A values from the metrics dictionary
-        #returns it for later process
+        current_metrics = self.get_current_metrics()
+        historical_metrics = self.get_historical_metrics()
+        peer_metrics = self.get_peer_metrics()
+        macro_info = self.get_macro_info()
+        # Combine all metrics into a single dictionary
+        metrics = {
+            "current_metrics": current_metrics,
+            "historical_metrics": historical_metrics,
+            "peer_metrics": peer_metrics,
+            "macro_info": macro_info
+        }
+        return metrics
 
 
 
