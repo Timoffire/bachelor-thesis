@@ -1,7 +1,7 @@
 import json
 from typing import Union, Any
 from vectordb import ChromaDBConnector
-from prompt_engineering import build_prompt
+from prompt_engineering import build_metric_analysis_prompt
 from metrics import CompanyMetricsRetriever
 from llm import call_llm, test_model_availability, check_ollama_connection
 import os
@@ -83,38 +83,42 @@ class RAGPipeline:
             print(f"Fehler bei der Abfrage: {str(e)}")
             return "", []
 
-    def run(self, ticker: str) -> dict[str, Union[str, list[Any]]]:
+    def run(self, ticker: str):
         retriever = CompanyMetricsRetriever(ticker)
-        stock_metrics = retriever.get_metrics()
+        main_metrics, metric_context = retriever.get_metrics()
         logging.info("Received Metrics")
         # Zwischenspeicher für alle Metriken mit ihren Kontexten und Quellen
         metric_data = {}
 
         # 1. Für jede Metrik separat Retrieval durchführen
         #TODO: überarbeiten für jede Metrik
-        for metric_name, metric_value in stock_metrics.items():
-            query_text = self.query_builder.build_query(ticker, metric_name)
-            logging.info(f"Built Query Text for {metric_name}")
+        for key, value in main_metrics["metrics"].items():
+            query_text = self.query_builder.build_query(ticker, key)
+            logging.info(f"Built Query Text for {key}")
 
             context, sources = self.query(query_text, n_results=5)
-            logging.info(f"Finished Query for {metric_name}")
+            logging.info(f"Finished Query for {key}")
 
-            metric_data[metric_name] = {
-                'value': metric_value,
+            metric_data[key] = {
+                key : value,
                 'context': context,
                 'sources': sources
             }
-
+        logging.info("Collected all metric data")
+        print(json.dumps(metric_data, indent=4, ensure_ascii=False))
+        print(json.dumps(metric_context, indent=4, ensure_ascii=False))
         # 2. Einen einzigen Prompt bauen, der alle Metriken inkl. Kontext kombiniert
         #TODO: Prompt-Engineering verbessern
-        prompt = build_prompt(ticker,
-                              metric_data)
-        logging.info("Built combined Prompt")
-
-        # 3. Einmal LLM aufrufen
-        response = call_llm(prompt, model_name=self.llm_model)
-        logging.info("Got response from LLM")
-
+        for metric_name in metric_data.keys():
+            prompt = build_metric_analysis_prompt(
+                metric_data=metric_data,
+                metric_context=metric_context,
+                metric_name=metric_name
+            )
+            logging.info(f"Built prompt for metric: {metric_name}")
+            response = call_llm(prompt, model_name=self.llm_model)
+            logging.info("Got response from LLM")
+            return response
         try:
             parsed_response = json.loads(response)
         except json.JSONDecodeError:

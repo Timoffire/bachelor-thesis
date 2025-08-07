@@ -8,6 +8,23 @@ class CompanyMetricsRetriever:
     def __init__(self, ticker: str):
         self.stock = yf.Ticker(ticker)
 
+    def get_company_info(self) -> Optional[Dict]:
+        info = self.stock.info
+        company_info = {
+            'name': info.get('longName'),
+            'sector': info.get('sector'),
+            'industry': info.get('industry'),
+            'employees': info.get('fullTimeEmployees'),
+            'market_cap': info.get('marketCap'),
+            'description': (info.get('longBusinessSummary') or "Keine Beschreibung verfügbar.")[:500] + '...',
+            'headquarters': f"{info.get('city', '')}, {info.get('state', '')}, {info.get('country', '')}",
+            'website': info.get('website')
+        }
+
+        return {
+            "company_info": company_info
+        }
+
     def get_current_metrics(self) -> Optional[Dict]:
         #TODO: Load Metrics via API and return them in a Dictionary
         info = self.stock.info
@@ -30,19 +47,9 @@ class CompanyMetricsRetriever:
             # TODO: choose only 6 relevant stock informations
         }
         # TODO: Load Company Info
-        company_info = {
-            'name': info.get('longName'),
-            'sector': info.get('sector'),
-            'industry': info.get('industry'),
-            'employees': info.get('fullTimeEmployees'),
-            'market_cap': info.get('marketCap'),
-            'description': (info.get('longBusinessSummary') or "Keine Beschreibung verfügbar.")[:500] + '...',
-            'headquarters': f"{info.get('city', '')}, {info.get('state', '')}, {info.get('country', '')}",
-            'website': info.get('website')
-        }
+
         return {
-            "metrics": metric_mapping,
-            "company_info": company_info
+            "metrics": metric_mapping
         }
 
     def get_historical_metrics(self):
@@ -148,14 +155,15 @@ class CompanyMetricsRetriever:
         historical_metrics = self.get_historical_metrics()
         peer_metrics = self.get_peer_metrics()
         macro_info = self.get_macro_info()
+        company_info = self.get_company_info()
         # Combine all metrics into a single dictionary
-        metrics = {
-            "current_metrics": current_metrics,
+        context_metrics = {
             "historical_metrics": historical_metrics,
             "peer_metrics": peer_metrics,
-            "macro_info": macro_info
+            "macro_info": macro_info,
+            "company_info": company_info
         }
-        return metrics
+        return current_metrics, context_metrics
 
 
 
