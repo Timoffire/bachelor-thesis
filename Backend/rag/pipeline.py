@@ -39,7 +39,7 @@ class RAGPipeline:
                 pdf_path = os.path.join(folder_path, filename)
                 self.db_connector.add_pdf_to_collection(pdf_path)
 
-    def query(self, query_text: str, n_results: int = 5, include_metadata: bool = True) -> tuple[str, list[str]]:
+    def query(self, query_text: str, n_results: int = 10) -> tuple[str, list[str]]:
         """
         Führt eine Abfrage gegen die ChromaDB durch und gibt Kontext und Quellen zurück.
 
@@ -85,51 +85,40 @@ class RAGPipeline:
 
     def run(self, ticker: str):
         retriever = CompanyMetricsRetriever(ticker)
-        main_metrics, metric_context = retriever.get_metrics()
-        logging.info("Received Metrics")
-        # Zwischenspeicher für alle Metriken mit ihren Kontexten und Quellen
-        metric_data = {}
+        complete_metrics = retriever.get_metrics()
 
-        # 1. Für jede Metrik separat Retrieval durchführen
-        #TODO: überarbeiten für jede Metrik
-        for key, value in main_metrics["metrics"].items():
-            query_text = self.query_builder.build_query(ticker, key)
-            logging.info(f"Built Query Text for {key}")
-
-            context, sources = self.query(query_text, n_results=5)
-            logging.info(f"Finished Query for {key}")
-
-            metric_data[key] = {
-                key : value,
-                'context': context,
-                'sources': sources
+        metrics = complete_metrics["metrics"]
+        historical_metrics = complete_metrics["historical_metrics"]
+        peer_metrics = complete_metrics["peer_metrics"]
+        macro_info = complete_metrics["macro_info"]
+        company_info = complete_metrics["company_info"]
+        enriched_metrics = {}
+        for metric, value in metrics["metrics"].items():
+            query = self.query_builder.build_query(metric)
+            context, sources = self.query(query_text=query)
+            enriched_metrics[metric] = {
+                "value": value,
+                "context": context,
+                "sources": sources
             }
-        logging.info("Collected all metric data")
-        print(json.dumps(metric_data, indent=4, ensure_ascii=False))
-        print(json.dumps(metric_context, indent=4, ensure_ascii=False))
-        # 2. Einen einzigen Prompt bauen, der alle Metriken inkl. Kontext kombiniert
-        #TODO: Prompt-Engineering verbessern
-        for metric_name in metric_data.keys():
+        response = {}
+        for metric, metric_values in enriched_metrics.items():
+            value = metric_values["value"]
+            context = metric_values["context"]
+            sources = metric_values["sources"]
             prompt = build_metric_analysis_prompt(
-                metric_data=metric_data,
-                metric_context=metric_context,
-                metric_name=metric_name
+                ticker=ticker,
+                peer_metrics=peer_metrics,
+                macro_info=macro_info,
+                company_info=company_info,
+                historical_metrics=historical_metrics,
+                metric=metric,
+                value=value,
+                literature_context=context
             )
-            logging.info(f"Built prompt for metric: {metric_name}")
-            response = call_llm(prompt, model_name=self.llm_model)
-            logging.info("Got response from LLM")
-            return response
-        try:
-            parsed_response = json.loads(response)
-        except json.JSONDecodeError:
-            logging.error("Response konnte nicht als JSON geparst werden. Rohantwort:\n" + response)
-            parsed_response = {"error": "Invalid JSON", "raw_response": response}
+            llm_response = call_llm(prompt, self.llm_model, temperature=0.5)
 
-        return {
-            'ticker': ticker,
-            'metrics': metric_data,
-            'response': parsed_response,
-        }
+
 
     def delete_collection(self):
         self.db_connector.delete_collection()

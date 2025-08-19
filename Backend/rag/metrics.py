@@ -21,33 +21,30 @@ class CompanyMetricsRetriever:
             'website': info.get('website')
         }
 
-        return {
-            "company_info": company_info
-        }
+        return company_info
 
     def get_current_metrics(self) -> Optional[Dict]:
         #TODO: Load Metrics via API and return them in a Dictionary
         info = self.stock.info
         # Mapping von unseren standardisierten Namen zu den yfinance-Feldnamen.
         metric_mapping = {
-            'revenue': info.get('totalRevenue'),
-            'net_income': info.get('netIncomeToCommon'),
-            'total_debt': info.get('totalDebt'),
-            'free_cash_flow': info.get('freeCashflow'),
-            'roe': info.get('returnOnEquity'),
-            'roa': info.get('returnOnAssets'),
-            'debt_to_equity': info.get('debtToEquity'),
-            'current_ratio': info.get('currentRatio'),
-            'market_cap': info.get('marketCap'),
-            'pe_ratio': info.get('trailingPE'),
-            'pb_ratio': info.get('priceToBook'),
-            'dividend_yield': info.get('dividendYield'),
-            'beta': info.get('beta'),
-            'price_to_sales': info.get('priceToSalesTrailing12Months')
-            # TODO: choose only 6 relevant stock informations
+            #EPS
+            'eps_direct' : info.get("trailingEps"),
+            #P/E Ratio
+            'pe_ratio_direct': info.get("trailingPE"),
+            #ROA
+            'roa_direct': info.get("returnOnAssets"),
+            #Price to Book Ratio
+            'pb_ratio_direct': info.get("priceToBook"),
+            #ROE
+            'roe_direct': info.get("returnOnEquity"),
+            #Debt to Equity Ratio
+            'debt_to_equity_direct': info.get("debtToEquity"),
+            #Market Cap
+            'market_cap_direct': info.get("marketCap"),
+            #Prices to Sales Ratio
+            'price_to_sales_direct': info.get("priceToSalesTrailing12Months")
         }
-        # TODO: Load Company Info
-
         return {
             "metrics": metric_mapping
         }
@@ -156,14 +153,11 @@ class CompanyMetricsRetriever:
         peer_metrics = self.get_peer_metrics()
         macro_info = self.get_macro_info()
         company_info = self.get_company_info()
-        # Combine all metrics into a single dictionary
-        context_metrics = {
+
+        return {
+            "metrics": current_metrics,
             "historical_metrics": historical_metrics,
             "peer_metrics": peer_metrics,
             "macro_info": macro_info,
             "company_info": company_info
         }
-        return current_metrics, context_metrics
-
-
-
