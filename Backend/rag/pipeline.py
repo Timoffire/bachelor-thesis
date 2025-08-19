@@ -84,14 +84,21 @@ class RAGPipeline:
             return "", []
 
     def run(self, ticker: str):
+        """
+        Calls the RAG pipeline for a given ticker symbol.
+        """
+        #Get all information for the given ticker
         retriever = CompanyMetricsRetriever(ticker)
         complete_metrics = retriever.get_metrics()
 
+        #Splits the complete metrics into its components
         metrics = complete_metrics["metrics"]
         historical_metrics = complete_metrics["historical_metrics"]
         peer_metrics = complete_metrics["peer_metrics"]
         macro_info = complete_metrics["macro_info"]
         company_info = complete_metrics["company_info"]
+
+        #Enriches the metrics with RAG
         enriched_metrics = {}
         for metric, value in metrics["metrics"].items():
             query = self.query_builder.build_query(metric)
@@ -101,7 +108,9 @@ class RAGPipeline:
                 "context": context,
                 "sources": sources
             }
-        response = {}
+
+        #Builds the LLM prompts and calls the LLM
+        responses = {}
         for metric, metric_values in enriched_metrics.items():
             value = metric_values["value"]
             context = metric_values["context"]
@@ -117,8 +126,12 @@ class RAGPipeline:
                 literature_context=context
             )
             llm_response = call_llm(prompt, self.llm_model, temperature=0.5)
-
-
+            responses[metric] = {
+                "value": value,
+                "llm_response": llm_response,
+                "sources": sources
+            }
+        return responses
 
     def delete_collection(self):
         self.db_connector.delete_collection()
