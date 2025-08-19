@@ -1,3 +1,5 @@
 # Literatur-Ordner ignorieren
 Literatur/
 Backend/rag/chroma_db/
+Evaluation/Literature/
+Evaluation/chroma_db/
