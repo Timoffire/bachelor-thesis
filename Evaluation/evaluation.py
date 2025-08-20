@@ -3,7 +3,7 @@ from Backend.rag.vectordb import ChromaDBConnector
 from Backend.rag.llm import call_llm
 import pandas as pd
 import logging
-csv_path = "Evaluation/QA/questions.csv"
+import time
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -21,6 +21,7 @@ class Evaluation:
             path=self.persist_directory,
             embedding_model=self.embedding_model
         )
+        self.csv_path = "QA/questions.csv"
     def query(self, query_text: str, n_results: int = 10):
         results = self.db_connector.query_collection(query_text,n_results)
 
@@ -72,36 +73,48 @@ class Evaluation:
         self.db_connector.add_pdf_to_collection(pdf_path=path)
 
 
-    def evaluate(self):
+    def evaluate(self, models=None, temperature=0.1, out_dir="Results"):
+        if models is None:
+            models = ["llama3:latest", "llama2:7b", "mistral:7b", "gemma:7b"]
 
-        df = pd.read_csv(csv_path)
-        questions = questions = df['question'].tolist()
+        os.makedirs(out_dir, exist_ok=True)
 
-        #run llm with context
-        answers = []
-        for question in questions:
-            context = self.query(question)
-            context_prompt = self.prompt_builder(question, context)
-            no_context_prompt = self.prompt_builder(question, "")
-            answer_context = call_llm(self.llm_model, context_prompt, temperature= 0.1)
-            answer_no_context = call_llm(self.llm_model, no_context_prompt, temperature= 0.1)
-            #write answer in df
-            answers.append({
-                'question': question,
-                'answer_context': answer_context,
-                'answer_no_context': answer_no_context
-            })
-        answer_df = pd.DataFrame(answers)
-        #save df to csv
-        answer_df.to_csv('Evaluation/Results/answers.csv', index=False)
+        df = pd.read_csv(self.csv_path, encoding="utf-8", delimiter=";")
+        questions = df["question"].tolist()
+
+        all_rows = []
+
+        for model in models:
+            model_rows = []
+            for question in questions:
+                context = self.query(question)
+                context_prompt = self.prompt_builder(question, context)
+                no_context_prompt = self.prompt_builder(question, "")
+                logging.info(f"Evaluating model: {model} with question: {question}")
+                answer_context = call_llm(prompt=context_prompt, model_name=model, temperature=temperature)
+                answer_no_context = call_llm(prompt=no_context_prompt, model_name=model, temperature=temperature)
+                row = {
+                    "model": model,
+                    "question": question,
+                    "answer_context": answer_context,
+                    "answer_no_context": answer_no_context,
+                }
+                all_rows.append(row)
+                model_rows.append(row)
+
+            # pro Modell separate Datei
+            pd.DataFrame(model_rows).to_csv(
+                os.path.join(out_dir, f"answers_{model.replace(':','-')}.csv"),
+                index=False,
+                encoding="utf-8"
+            )
+
+        # alle Modelle gemeinsam
+        answer_df = pd.DataFrame(all_rows)
+        answer_df.to_csv(os.path.join(out_dir, "answers_all_models.csv"), index=False, encoding="utf-8")
+        return answer_df
 
 if __name__ == "__main__":
     logging.info("Starting Evaluation")
     evaluator = Evaluation()
-    question = "Is it true that if a company does not distribute dividends then the cost of its equity is zero?"
-    context =evaluator.query(question)
-    prompt = evaluator.prompt_builder(question=question,context=context)
-    response_with = call_llm(prompt, temperature=0.1)
-    response_without = call_llm(evaluator.prompt_builder(question=question, context=""), temperature=0.1)
-    print(response_with)
-    print(response_without)
+    df = evaluator.evaluate()
