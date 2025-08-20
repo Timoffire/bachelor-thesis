@@ -50,45 +50,63 @@ class ChromaDBConnector:
                             text += page_text + "\n"
             except Exception as e:
                 raise Exception(f"Error reading PDF: {str(e)}")
-
             return text.strip()
 
         def chunk_text(text: str, chunk_size: int, overlap: int) -> List[str]:
-            """Split text into overlapping chunks."""
-            if len(text) <= chunk_size:
-                return [text]
+            """Split text into overlapping chunks with safe progress and boundary-aware ends."""
+            # Parameter validieren
+            if chunk_size <= 0:
+                raise ValueError("chunk_size must be > 0")
+            if overlap < 0 or overlap >= chunk_size:
+                raise ValueError("overlap must satisfy 0 <= overlap < chunk_size")
 
-            chunks = []
+            n = len(text)
+            if n == 0:
+                return []
+            if n <= chunk_size:
+                return [text.strip()]
+
+            chunks: List[str] = []
             start = 0
+            step = chunk_size - overlap  # garantiert Fortschritt
 
-            while start < len(text):
-                end = start + chunk_size
+            while start < n:
+                # vorläufiges Ende
+                end = min(start + chunk_size, n)
 
-                # If this isn't the last chunk, try to break at a sentence or word boundary
-                if end < len(text):
-                    # Look for sentence boundary (. ! ?)
+                # Versuche, bis zu 200 Zeichen nach hinten eine hübsche Grenze zu finden
+                if end < n:
+                    win_start = max(start, end - 200)
                     sentence_end = max(
-                        text.rfind('.', start, end),
-                        text.rfind('!', start, end),
-                        text.rfind('?', start, end)
+                        text.rfind('.', win_start, end),
+                        text.rfind('!', win_start, end),
+                        text.rfind('?', win_start, end),
                     )
-
                     if sentence_end > start:
                         end = sentence_end + 1
                     else:
-                        # Fall back to word boundary
-                        word_end = text.rfind(' ', start, end)
+                        word_end = text.rfind(' ', win_start, end)
                         if word_end > start:
                             end = word_end
 
+                # Fortschritt erzwingen (mind. 1 Zeichen)
+                if end <= start:
+                    end = min(start + 1, n)
+
                 chunk = text[start:end].strip()
-                if chunk:  # Only add non-empty chunks
+                if chunk:
                     chunks.append(chunk)
 
-                # Move start position with overlap
-                start = end - overlap
-                if start <= 0 or start >= len(text):
-                    break
+                if end >= n:
+                    break  # letzter Chunk verarbeitet
+
+                # Nächster Startpunkt: monotone Bewegung nach vorne
+                next_start = start + step
+                # Sicherheitsnetz: falls die Begrenzung sehr früh endete, trotzdem weitergehen
+                next_start = max(next_start, end - overlap)
+                if next_start <= start:
+                    next_start = start + 1  # absolute Notbremse gegen Stagnation
+                start = next_start
 
             return chunks
 
@@ -108,8 +126,9 @@ class ChromaDBConnector:
         ids = []
 
         # Generate a unique identifier for this PDF
+        logging.info(f"Generating unique ID for PDF: {pdf_path}")
         pdf_hash = hashlib.md5(pdf_path.encode()).hexdigest()[:8]
-
+        logging.info(f"Generated PDF hash: {pdf_hash}")
         for i, chunk in enumerate(text_chunks):
             # Create unique ID for each chunk
             chunk_id = f"{pdf_hash}_chunk_{i:04d}"
@@ -133,6 +152,7 @@ class ChromaDBConnector:
 
         # Add to ChromaDB collection
         try:
+            logging.info("Adding chunks to ChromaDB collection")
             collection = self.client.get_or_create_collection(name="docs")
             collection.add(
                 documents=documents,

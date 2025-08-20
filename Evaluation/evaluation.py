@@ -4,6 +4,11 @@ from Backend.rag.llm import call_llm
 import pandas as pd
 import logging
 csv_path = "Evaluation/QA/questions.csv"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
 
 class Evaluation:
     def __init__(self, persist_directory: str = "./chroma_db", collection_name: str = "docs",
@@ -61,7 +66,11 @@ class Evaluation:
         for filename in os.listdir(path):
             if filename.lower().endswith(".pdf"):
                 pdf_path = os.path.join(path, filename)
-                self.db_connector.add_pdf_to_collection(pdf_path)
+                self.db_connector.add_pdf_to_collection(pdf_path= pdf_path)
+
+    def add_single_pdf(self, path: str):
+        self.db_connector.add_pdf_to_collection(pdf_path=path)
+
 
     def evaluate(self):
 
@@ -87,7 +96,12 @@ class Evaluation:
         answer_df.to_csv('Evaluation/Results/answers.csv', index=False)
 
 if __name__ == "__main__":
+    logging.info("Starting Evaluation")
     evaluator = Evaluation()
-    evaluator.add_pdf_to_db("Literature")
-    evaluator.evaluate()
-    print("Evaluation completed and results saved to 'Evaluation/Results/answers.csv'.")
+    question = "Is it true that if a company does not distribute dividends then the cost of its equity is zero?"
+    context =evaluator.query(question)
+    prompt = evaluator.prompt_builder(question=question,context=context)
+    response_with = call_llm(prompt, temperature=0.1)
+    response_without = call_llm(evaluator.prompt_builder(question=question, context=""), temperature=0.1)
+    print(response_with)
+    print(response_without)
