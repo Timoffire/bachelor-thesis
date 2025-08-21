@@ -1,12 +1,11 @@
 import json
-from typing import Union, Any
-from vectordb import ChromaDBConnector
-from prompt_engineering import build_metric_analysis_prompt
-from metrics import CompanyMetricsRetriever
-from llm import call_llm, test_model_availability, check_ollama_connection
+from .vectordb import ChromaDBConnector
+from .prompt_engineering import build_metric_analysis_prompt
+from .metrics import CompanyMetricsRetriever
+from .llm import call_llm, test_model_availability, check_ollama_connection
 import os
 from dotenv import load_dotenv
-from query_builder import MetricQueryBuilder
+from .query_builder import MetricQueryBuilder
 import logging
 load_dotenv()
 logging.basicConfig(
@@ -19,7 +18,7 @@ class RAGPipeline:
     """
     Orchestriert die RAG-Pipeline: Retrieval, Augmentation, Prompting.
     """
-    def __init__(self, persist_directory: str = "./chroma_db", collection_name: str = "docs", embedding_model: str = "nomic-embed-text", llm_model: str = "llama3"):
+    def __init__(self, persist_directory: str = "rag/chroma_db", collection_name: str = "docs", embedding_model: str = "nomic-embed-text", llm_model: str = "llama3"):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self.embedding_model = embedding_model
@@ -87,6 +86,10 @@ class RAGPipeline:
         """
         Calls the RAG pipeline for a given ticker symbol.
         """
+        #check if the db is initialized
+        if not self.db_connector.client.get_collection("docs"):
+            logging.error("Die ChromaDB-Collection 'docs' existiert nicht. Bitte fügen Sie Dokumente hinzu oder initialisieren Sie die Collection.")
+            return {"error": "Die ChromaDB-Collection 'docs' existiert nicht."}
         #Get all information for the given ticker
         retriever = CompanyMetricsRetriever(ticker)
         complete_metrics = retriever.get_metrics()
