@@ -1,15 +1,19 @@
+import os
+
 import chromadb
+from chromadb.config import Settings
 import PyPDF2
 from typing import List, Optional, Any
 import hashlib
 import logging
+import shutil
 
 class ChromaDBConnector:
     """
     Verwaltet die Verbindung zur lokalen ChromaDB VectorDB.
     """
     def __init__(self, path: str, embedding_model: str = None):
-        self.client = chromadb.PersistentClient(path=path)
+        self.client = chromadb.PersistentClient(path=path, settings= Settings(allow_reset=True))
         self.embedding_model = embedding_model
 
     def add_or_create_collection(self):
@@ -165,9 +169,19 @@ class ChromaDBConnector:
         except Exception as e:
             raise Exception(f"Error adding documents to ChromaDB: {str(e)}")
 
-    def delete_collection(self, collection_name = "docs"):
-        self.client.delete_collection(name=collection_name)
-        logging.info(f"Deleted collection '{collection_name}' from ChromaDB")
+    def delete_collection(self, path: str = "rag/chroma_db") -> bool:
+        abs_path = os.path.abspath(path)
+        try:
+            if os.path.exists(abs_path):
+                shutil.rmtree(abs_path)
+                logging.info(f"Deleted ChromaDB folder at {abs_path}")
+                return True
+            else:
+                logging.info(f"No ChromaDB folder found at {abs_path}")
+                return False
+        except Exception as e:
+            logging.error(f"Error deleting ChromaDB folder at {abs_path}: {e}")
+            raise
 
     def query_collection(
             self,
