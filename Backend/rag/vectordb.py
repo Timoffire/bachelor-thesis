@@ -169,19 +169,9 @@ class ChromaDBConnector:
         except Exception as e:
             raise Exception(f"Error adding documents to ChromaDB: {str(e)}")
 
-    def delete_collection(self, path: str = "rag/chroma_db") -> bool:
-        abs_path = os.path.abspath(path)
-        try:
-            if os.path.exists(abs_path):
-                shutil.rmtree(abs_path)
-                logging.info(f"Deleted ChromaDB folder at {abs_path}")
-                return True
-            else:
-                logging.info(f"No ChromaDB folder found at {abs_path}")
-                return False
-        except Exception as e:
-            logging.error(f"Error deleting ChromaDB folder at {abs_path}: {e}")
-            raise
+    def delete_collection(self):
+        self.client.clear_system_cache()
+        self.client.delete_collection(name = "docs")
 
     def query_collection(
             self,
