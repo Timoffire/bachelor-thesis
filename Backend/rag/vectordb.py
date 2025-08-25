@@ -1,12 +1,10 @@
-import os
-
 import chromadb
 from chromadb.config import Settings
 import PyPDF2
 from typing import List, Optional, Any
 import hashlib
 import logging
-import shutil
+from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
 class ChromaDBConnector:
     """
@@ -14,16 +12,16 @@ class ChromaDBConnector:
     """
     def __init__(self, path: str, embedding_model: str = None):
         self.client = chromadb.PersistentClient(path=path, settings= Settings(allow_reset=True))
-        self.embedding_model = embedding_model
+        self.embedding_model = OllamaEmbeddingFunction(url="http://localhost:11434",model_name=embedding_model)
 
     def add_or_create_collection(self):
-        collection = self.client.get_or_create_collection(name="docs")
+        collection = self.client.get_or_create_collection(name="docs", embedding_function= self.embedding_model)
         return collection
 
     def add_pdf_to_collection(
             self,
             pdf_path: str,
-            chunk_size: int = 1000,
+            chunk_size: int = 600,
             chunk_overlap: int = 200,
             metadata: Optional[dict] = None
     ) -> List[str]:
@@ -157,7 +155,7 @@ class ChromaDBConnector:
         # Add to ChromaDB collection
         try:
             logging.info("Adding chunks to ChromaDB collection")
-            collection = self.client.get_or_create_collection(name="docs")
+            collection = self.client.get_or_create_collection(name="docs", embedding_function= self.embedding_model)
             collection.add(
                 documents=documents,
                 metadatas=metadatas,
