@@ -4,7 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RAG Analyseplattform",
+  title: "Context-Aware RAG-System for Interpretable Stock Analysis",
   description: "Landing → Ergebnisse → Metrik-Details",
 };
 
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <div className="flex items-center gap-4">
               <Link href="/results" className="text-sm text-slate-200 hover:text-white">
-                Ergebnisse
+                Results
               </Link>
             </div>
           </div>
