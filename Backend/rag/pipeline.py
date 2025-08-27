@@ -18,7 +18,7 @@ class RAGPipeline:
     """
     Orchestriert die RAG-Pipeline: Retrieval, Augmentation, Prompting.
     """
-    def __init__(self, persist_directory: str = "rag/chroma_db", collection_name: str = "docs", embedding_model: str = "nomic-embed-text", llm_model: str = "llama3"):
+    def __init__(self, persist_directory: str = "rag/chroma_db", collection_name: str = "docs", embedding_model: str = "mxbai-embed-large:latest", llm_model: str = "llama3"):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self.embedding_model = embedding_model
