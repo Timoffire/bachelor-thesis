@@ -11,10 +11,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%H:%M:%S"
 )
-
-# ==== Deine vorhandene Pipeline ======================
-# Wichtig: Stelle sicher, dass RAGPipeline und alle Imports im PYTHONPATH verfügbar sind
-# oder diese Datei im selben Projekt liegt.
 from rag.pipeline import RAGPipeline  # Passe den Import ggf. an
 
 # =====================================================
@@ -56,13 +52,6 @@ class AddDocumentRequest(BaseModel):
 # -------------------- API-Adapter-Klasse --------------------
 
 class RAGAPI:
-    """
-    Dünne API-Schicht über der RAGPipeline.
-
-    - Kapselt die RAGPipeline als Dependency
-    - Bietet saubere JSON-Responses für das Frontend
-    - Enthält robuste Fehlerbehandlung
-    """
 
     def __init__(self, pipeline: Optional[RAGPipeline] = None) -> None:
         self.pipeline = pipeline or RAGPipeline()
@@ -141,8 +130,6 @@ class RAGAPI:
 
 router = APIRouter()
 
-# Dependency, damit die Pipeline leicht mock-/austauschbar ist
-
 def get_api() -> RAGAPI:
     return RAGAPI()
 
@@ -189,7 +176,6 @@ def build_app() -> FastAPI:
 
 app = build_app()
 
-# ---- Lokaler Start: uvicorn fastapi_rag_api:app --reload ----
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("fastapi_rag_api:app", host="0.0.0.0", port=8000, reload=True)

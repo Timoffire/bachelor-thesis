@@ -1,4 +1,3 @@
-
 from typing import Dict, Optional
 import yfinance as yf
 import requests
@@ -9,6 +8,11 @@ class CompanyMetricsRetriever:
         self.stock = yf.Ticker(ticker)
 
     def get_company_info(self) -> Optional[Dict]:
+        """
+        Fetches basic company information such as name, sector, industry, employees, market cap, description, headquarters, and website.
+        Returns:
+            A dictionary containing the company information.
+        """
         info = self.stock.info
         company_info = {
             'name': info.get('longName'),
@@ -24,9 +28,13 @@ class CompanyMetricsRetriever:
         return company_info
 
     def get_current_metrics(self) -> Optional[Dict]:
-        #TODO: Load Metrics via API and return them in a Dictionary
+        """
+        Fetches current financial metrics such as EPS, P/E Ratio, ROA, Price to Book Ratio, ROE, Debt to Equity Ratio, Market Cap, and Price to Sales Ratio.
+        Returns:
+            A dictionary containing the current financial metrics.
+        """
         info = self.stock.info
-        # Mapping von unseren standardisierten Namen zu den yfinance-Feldnamen.
+        # Mapping to use own Metric names
         metric_mapping = {
             #EPS
             'eps_direct' : info.get("trailingEps"),
@@ -50,6 +58,11 @@ class CompanyMetricsRetriever:
         }
 
     def get_historical_metrics(self):
+        """
+        Fetches historical financial metrics for the past years including revenue, net income, total debt, and free cash flow.
+        Returns:
+            A dictionary containing historical financial metrics by year.
+        """
         stock = self.stock
         income = stock.financials
         balance = stock.balance_sheet
@@ -65,20 +78,22 @@ class CompanyMetricsRetriever:
             equity = balance.get(year).get("Total Stockholder Equity")
             total_debt = balance.get(year).get("Total Debt")
             fcf = cashflow.get(year).get("Free Cash Flow")
-            #TODO: Add more metrics
 
             metrics_by_year[year.year] = {
                 "revenue": revenue,
                 "net_income": net_income,
                 "total_debt": total_debt,
                 "free_cash_flow": fcf,
-                # TODO: Add more metrics
             }
-        #TODO: calculate ratios
 
         return metrics_by_year
 
     def get_peer_metrics(self):
+        """
+        Fetches metrics of peer companies in the same sector and industry.
+        Returns:
+            A dictionary containing peer companies and their key metrics.
+        """
         info = self.stock.info
         sector = info.get("sector")
         # Dictionary mapping GICS sectors to well-known ETFs
@@ -111,6 +126,15 @@ class CompanyMetricsRetriever:
         return insights
 
     def get_indicator_value(self, country_code, indicator, year):
+        """
+        Fetches a specific economic indicator value for a given country and year from the World Bank API.
+        Args:
+            country_code (str): The 3-letter country code (ISO 3166-1 alpha-3).
+            indicator (str): The World Bank indicator code.
+            year (int): The year for which to fetch the indicator value.
+        Returns:
+            The value of the indicator or None if not found.
+        """
         url = f'https://api.worldbank.org/v2/country/{country_code}/indicator/{indicator}?format=json&per_page=1&date={year}'
         response = requests.get(url)
 
@@ -147,7 +171,11 @@ class CompanyMetricsRetriever:
 
 
     def get_metrics(self):
-        #orchestrates the functions
+        """
+        Fetches all relevant metrics including current, historical, peer, macroeconomic, and company information.
+        Returns:
+            A dictionary containing all the fetched metrics.
+        """
         current_metrics = self.get_current_metrics()
         historical_metrics = self.get_historical_metrics()
         peer_metrics = self.get_peer_metrics()

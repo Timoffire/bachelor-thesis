@@ -1,8 +1,4 @@
 class MetricQueryBuilder:
-    """
-    Erstellt optimierte Suchanfragen für verschiedene Finanzmetriken.
-    Unterstützt sowohl englische als auch deutsche Keywords.
-    """
 
     def __init__(self):
         # Metrik-Keywords in EN und DE
@@ -19,14 +15,11 @@ class MetricQueryBuilder:
 
     def build_query(self, metric: str) -> str:
         """
-        Erstellt eine optimierte Suchanfrage für eine spezifische Metrik und ein Unternehmen.
+        Creates a query string based on the specified financial metric.
         Args:
-            ticker: Börsenticker des Unternehmens (z. B. "AAPL")
-            metric: Name der Metrik (z. B. "revenue", "profit_margin")
-            lang: Sprache der Suchbegriffe ("en" oder "de")
-            include_context: Ob zusätzliche Kontextbegriffe ergänzt werden sollen
+            metric: The financial metric to build the query for (e.g., "P/E Ratio
         Returns:
-            str: Optimierte Suchanfrage
+            A query string containing relevant keywords for the specified metric.
         """
         keywords = self.metric_keywords.get(metric, [])
 

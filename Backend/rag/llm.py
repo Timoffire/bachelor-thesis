@@ -3,15 +3,21 @@ import requests
 from dotenv import load_dotenv
 from typing import List
 import logging
-import json
 
 load_dotenv()
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-def call_llm(prompt: str, model_name: str = "llama3", temperature: float = 0.5, max_tokens: int = 512) -> str:
+def call_llm(prompt: str, model_name: str = "llama3", temperature: float = 0.01, max_tokens: int = 512) -> str:
     """
-    Sendet eine Anfrage an einen Ollama-Server (lokal oder remote) und gibt die Antwort zurück.
+    sends a prompt to the specified Ollama model and returns the response text.
+    Args:
+        prompt: The input text prompt to send to the model.
+        model_name: The name of the Ollama model to use (default: "llama3").
+        temperature: Sampling temperature for response generation (default: 0.01).
+        max_tokens: Maximum number of tokens to generate in the response (default: 512).
+    Returns:
+        The generated response text from the model.
     """
     #base url with ollama
     url = f"{OLLAMA_BASE_URL}/api/chat"
@@ -33,7 +39,12 @@ def call_llm(prompt: str, model_name: str = "llama3", temperature: float = 0.5, 
 
 def ollama_embed(texts, model_name: str = "nomic-embed-text"):
     """
-    Holt Embeddings für eine Liste von Texten über Ollama (Embedding-Modell muss geladen sein).
+    Calls the Ollama embedding endpoint for a list of texts.
+    Args:
+        texts: List of text strings to embed.
+        model_name: The name of the embedding model to use (default: "nomic-embed-text").
+    Returns:
+        List of embeddings corresponding to the input texts.
     """
     url = f"{OLLAMA_BASE_URL}/api/embeddings"
     results = []
@@ -51,10 +62,9 @@ def ollama_embed(texts, model_name: str = "nomic-embed-text"):
 
 def check_ollama_connection() -> bool:
     """
-    Prüft ob eine Verbindung zu Ollama hergestellt werden kann.
-
+    Checks if the Ollama server is reachable.
     Returns:
-        bool: True wenn Ollama erreichbar ist, False sonst
+        bool: True if the server is reachable, False otherwise
     """
     try:
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
@@ -65,13 +75,9 @@ def check_ollama_connection() -> bool:
 
 def get_available_models() -> List[str]:
     """
-    Holt eine Liste der verfügbaren Modelle von Ollama.
-
+    gets a list of available models from the Ollama server.
     Returns:
-        List[str]: Liste der verfügbaren Modell-Namen
-
-    Raises:
-        RuntimeError: Bei Fehlern in der Kommunikation mit Ollama
+        List[str]: List of model names
     """
     try:
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
@@ -89,13 +95,11 @@ def get_available_models() -> List[str]:
 
 def test_model_availability(model_name: str) -> bool:
     """
-    Testet ob ein spezifisches Modell verfügbar ist.
-
+    tests if a specific model is available on the Ollama server.
     Args:
-        model_name: Name des zu testenden Modells
-
+        model_name: The name of the model to check.
     Returns:
-        bool: True wenn Modell verfügbar ist, False sonst
+        bool: True if the model is available, False otherwise.
     """
     try:
         available_models = get_available_models()

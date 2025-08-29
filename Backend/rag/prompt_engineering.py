@@ -12,6 +12,20 @@ def build_metric_analysis_prompt(
     company_info: Dict[str, Any],
     literature_context: Optional[str] = None
 ) -> str:
+    """
+    Builds a prompt for analyzing a financial metric using provided data.
+    Args:
+        ticker: Stock ticker symbol.
+        metric: The financial metric to analyze (e.g., "P/E Ratio").
+        value: Current value of the metric (may be None).
+        historical_metrics: Historical values of the metric for trend analysis.
+        peer_metrics: Peer/industry average values for comparison.
+        macro_info: Relevant macroeconomic information.
+        company_info: Company-specific information (sector, industry, description).
+        literature_context: Additional context from literature or reports (may be None).
+    Returns:
+        A formatted prompt string for the LLM.
+    """
     payload = {
         "ticker": ticker,
         "metric": metric,

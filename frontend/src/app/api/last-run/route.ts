@@ -43,10 +43,9 @@ export async function GET() {
     const json = JSON.parse(buf.toString("utf-8"));
     const st = await stat(LAST_RUN_FILE);
 
-    // Wir geben direkt das eigentliche run()-JSON unter "data" zurück.
     return NextResponse.json({
       exists: true,
-      data: json.data,                 // ← das aktuelle run()-JSON
+      data: json.data,
       meta: { ticker: json.ticker ?? null, savedAt: st.mtime.toISOString() },
       path: LAST_RUN_FILE,
     });

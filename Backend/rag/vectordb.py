@@ -8,13 +8,20 @@ from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
 class ChromaDBConnector:
     """
-    Verwaltet die Verbindung zur lokalen ChromaDB VectorDB.
+    A connector class for interacting with a ChromaDB vector database.
     """
     def __init__(self, path: str, embedding_model: str = None):
         self.client = chromadb.PersistentClient(path=path, settings= Settings(allow_reset=True))
         self.embedding_model = OllamaEmbeddingFunction(url="http://localhost:11434",model_name=embedding_model)
 
     def add_or_create_collection(self):
+        """
+        Add or create a ChromaDB collection.
+        Args:
+            self: The ChromaDBConnector instance
+        Returns:
+            The ChromaDB collection object
+        """
         collection = self.client.get_or_create_collection(name="docs", embedding_function= self.embedding_model)
         return collection
 
@@ -55,8 +62,16 @@ class ChromaDBConnector:
             return text.strip()
 
         def chunk_text(text: str, chunk_size: int, overlap: int) -> List[str]:
-            """Split text into overlapping chunks with safe progress and boundary-aware ends."""
-            # Parameter validieren
+            """
+            Split text into chunks with specified size and overlap, trying to split at sentence or word boundaries.
+            Args:
+                text: The input text to split
+                chunk_size: Maximum size of each chunk (in characters)
+                overlap: Number of characters to overlap between chunks
+            Returns:
+                List of text chunks
+            """
+            # validate parameters
             if chunk_size <= 0:
                 raise ValueError("chunk_size must be > 0")
             if overlap < 0 or overlap >= chunk_size:
@@ -70,13 +85,13 @@ class ChromaDBConnector:
 
             chunks: List[str] = []
             start = 0
-            step = chunk_size - overlap  # garantiert Fortschritt
+            step = chunk_size - overlap
 
             while start < n:
-                # vorläufiges Ende
+                # preliminary end point
                 end = min(start + chunk_size, n)
 
-                # Versuche, bis zu 200 Zeichen nach hinten eine hübsche Grenze zu finden
+                # Trying to find a sentence boundary
                 if end < n:
                     win_start = max(start, end - 200)
                     sentence_end = max(
@@ -91,7 +106,7 @@ class ChromaDBConnector:
                         if word_end > start:
                             end = word_end
 
-                # Fortschritt erzwingen (mind. 1 Zeichen)
+                # If no boundary found, use hard limit
                 if end <= start:
                     end = min(start + 1, n)
 
@@ -100,14 +115,14 @@ class ChromaDBConnector:
                     chunks.append(chunk)
 
                 if end >= n:
-                    break  # letzter Chunk verarbeitet
+                    break  # End of text reached
 
-                # Nächster Startpunkt: monotone Bewegung nach vorne
+                # Next start position
                 next_start = start + step
-                # Sicherheitsnetz: falls die Begrenzung sehr früh endete, trotzdem weitergehen
+                # Safety check to ensure progress
                 next_start = max(next_start, end - overlap)
                 if next_start <= start:
-                    next_start = start + 1  # absolute Notbremse gegen Stagnation
+                    next_start = start + 1
                 start = next_start
 
             return chunks
@@ -168,6 +183,13 @@ class ChromaDBConnector:
             raise Exception(f"Error adding documents to ChromaDB: {str(e)}")
 
     def delete_collection(self):
+        """
+        Delete the ChromaDB collection and clear system cache.
+        Args:
+            self: The ChromaDBConnector instance
+        Returns:
+            None
+        """
         self.client.clear_system_cache()
         self.client.delete_collection(name = "docs")
 
