@@ -1,4 +1,3 @@
-// src/app/results/[metric]/page.tsx
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";

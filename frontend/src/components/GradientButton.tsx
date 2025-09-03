@@ -5,13 +5,13 @@ import Link from "next/link";
 
 export type GradientButtonProps = {
   children: React.ReactNode;
-  href?: string; // optional: rendert als <Link>
-  onClick?: () => void; // optional: Button-Handler
+  href?: string; // optional: renders as <Link>
+  onClick?: () => void; // optional: button handler
   className?: string;
   size?: "sm" | "md" | "lg";
   ariaLabel?: string;
-  rounded?: "lg" | "xl" | "2xl" | "3xl"; // für Konsistenz mit MetricCard
-  wide?: boolean; // falls true: Button wird etwas breiter als Text
+  rounded?: "lg" | "xl" | "2xl" | "3xl"; // for consistency with MetricCard
+  wide?: boolean; // if true: button becomes slightly wider than text
 };
 
 const cn = (...xs: Array<string | undefined | false>) => xs.filter(Boolean).join(" ");
@@ -50,7 +50,7 @@ export default function GradientButton({
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70",
     "relative overflow-hidden",
     "cursor-pointer",
-    wide && "min-w-[8rem]", // sorgt für zusätzliche Breite
+    wide && "min-w-[8rem]",
     className
   );
 

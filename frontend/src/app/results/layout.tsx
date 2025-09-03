@@ -1,4 +1,3 @@
-// src/app/results/layout.tsx
 import Link from "next/link";
 
 export default function ResultsLayout({ children }: { children: React.ReactNode }) {

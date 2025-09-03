@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
@@ -12,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de" className="h-full">
       <body className="h-full min-h-screen antialiased">
-        {/* Transluzenz-Navbar: von überall zurück nach Hause */}
+        {/* Transluzenz-Navbar */}
         <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/30 backdrop-blur-md">
           <div className="mx-auto max-w-7xl px-6 py-3 flex items-center justify-between">
             <Link href="/" className="font-semibold text-white hover:opacity-90">
