@@ -39,7 +39,7 @@ class RAGPipeline:
                 pdf_path = os.path.join(folder_path, filename)
                 self.db_connector.add_pdf_to_collection(pdf_path)
 
-    def query(self, query_text: str, n_results: int = 10) -> tuple[str, list[str]]:
+    def query(self, query_text: str, n_results: int = 5) -> tuple[str, list[str]]:
         """
         Queries the ChromaDB collection for relevant documents based on the input query text.
         Args:

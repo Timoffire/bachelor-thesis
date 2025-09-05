@@ -14,7 +14,7 @@
 ## 🚀 Project Name & One-liner
 
 A **RAG-powered** analysis tool that ingests financial literature to explain a stock’s **fundamental metrics** in an **interpretable** way.
-Built for students, analysts, and researchers who need **transparent** LLM rationales tied to sources.
+Built for non-specialists who need **transparent** LLM rationales tied to sources.
 
 ---
 
